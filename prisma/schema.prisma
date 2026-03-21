@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──── Users & Auth ────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          String    @default("planner") // "planner" | "couple"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  memberships   WeddingMember[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ──── Core: Wedding ────
+
+model Wedding {
+  id            String   @id @default(cuid())
+  title         String
+  weddingDate   DateTime
+  venue         String?
+  status        String   @default("planning") // planning | confirmed | completed
+  budget        Int?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members            WeddingMember[]
+  milestones         Milestone[]
+  guests             Guest[]
+  tables             SeatingTable[]
+  gifts              Gift[]
+  giftGroups         GiftGroup[]
+  playlistSections   PlaylistSection[]
+  timelineEntries    DayTimelineEntry[]
+}
+
+model WeddingMember {
+  id        String @id @default(cuid())
+  role      String // "planner" | "bride" | "groom"
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId String
+
+  @@unique([userId, weddingId])
+}
+
+// ──── Feature: Master Schedule ────
+
+model Milestone {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  status      String   @default("pending") // pending | in_progress | done
+  sortOrder   Int      @default(0)
+  category    String?
+
+  wedding     Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId   String
+
+  tasks       Task[]
+}
+
+model Task {
+  id          String  @id @default(cuid())
+  title       String
+  done        Boolean @default(false)
+  assignee    String? // "planner" | "couple"
+  note        String?
+
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestoneId String
+}
+
+// ──── Feature: Guest Management ────
+
+model Guest {
+  id                String  @id @default(cuid())
+  familyName        String
+  givenName         String
+  familyNameKana    String?
+  givenNameKana     String?
+  relationship      String
+  side              String  // "bride" | "groom"
+  attendanceStatus  String  @default("pending") // pending | attending | declined
+  postalCode        String?
+  address           String?
+  email             String?
+  phone             String?
+  dietaryRestrictions String?
+  allergies         String?
+  note              String?
+  plusOne            Boolean @default(false)
+  isChild           Boolean @default(false)
+
+  wedding           Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId         String
+
+  seatAssignment    SeatAssignment?
+  giftAssignments   GiftAssignment[]
+}
+
+// ──── Feature: Seating Chart ────
+
+model SeatingTable {
+  id        String @id @default(cuid())
+  name      String
+  shape     String @default("round") // round | rectangle
+  capacity  Int    @default(8)
+  posX      Float  @default(0)
+  posY      Float  @default(0)
+  sortOrder Int    @default(0)
+
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId String
+
+  seatAssignments SeatAssignment[]
+}
+
+model SeatAssignment {
+  id        String @id @default(cuid())
+  seatIndex Int
+
+  guest     Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  guestId   String @unique
+  table     SeatingTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId   String
+
+  @@unique([tableId, seatIndex])
+}
+
+// ──── Feature: Gift Management ────
+
+model GiftGroup {
+  id        String @id @default(cuid())
+  name      String
+
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId String
+
+  assignments GiftAssignment[]
+}
+
+model Gift {
+  id        String @id @default(cuid())
+  name      String
+  category  String?
+  unitPrice Int
+  supplier  String?
+  note      String?
+
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId String
+
+  assignments GiftAssignment[]
+}
+
+model GiftAssignment {
+  id       String @id @default(cuid())
+  quantity Int    @default(1)
+
+  guest    Guest?     @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  guestId  String?
+  group    GiftGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  groupId  String?
+  gift     Gift       @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  giftId   String
+}
+
+// ──── Feature: Music Playlist ────
+
+model PlaylistSection {
+  id        String @id @default(cuid())
+  name      String
+  sortOrder Int    @default(0)
+
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId String
+
+  songs     Song[]
+}
+
+model Song {
+  id          String @id @default(cuid())
+  title       String
+  artist      String
+  durationSec Int?
+  note        String?
+  sortOrder   Int    @default(0)
+
+  section     PlaylistSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId   String
+}
+
+// ──── Feature: Day-of Timeline ────
+
+model DayTimelineEntry {
+  id          String  @id @default(cuid())
+  startTime   String
+  endTime     String?
+  title       String
+  description String?
+  location    String?
+  category    String?
+  sortOrder   Int     @default(0)
+
+  wedding     Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  weddingId   String
+}
