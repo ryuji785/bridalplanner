@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { Menu, LogOut, User } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export function Header({ onToggleMobileNav }: HeaderProps) {
   const initials = user?.name
     ? user.name
         .split(/\s+/)
-        .map((s) => s[0])
+        .map((segment) => segment[0])
         .join("")
         .slice(0, 2)
     : "?";
@@ -66,9 +66,7 @@ export function Header({ onToggleMobileNav }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {user.name}
-                  </p>
+                  <p className="text-sm font-medium leading-none">{user.name}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>

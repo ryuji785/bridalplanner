@@ -8,13 +8,11 @@ import {
   Clock,
   CheckCircle2,
   HelpCircle,
-  XCircle,
 } from "lucide-react";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { formatDate, formatYen, daysUntil } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -41,11 +39,10 @@ export default async function WeddingOverviewPage({
 }: {
   params: { weddingId: string };
 }) {
-  const membership = await requireWeddingAccess(params.weddingId);
-  const weddingId = params.weddingId;
+  await requireWeddingAccess(params.weddingId);
 
   const wedding = await prisma.wedding.findUniqueOrThrow({
-    where: { id: weddingId },
+    where: { id: params.weddingId },
     include: {
       guests: {
         select: {
@@ -70,61 +67,56 @@ export default async function WeddingOverviewPage({
   });
 
   const days = daysUntil(wedding.weddingDate);
-
   const totalGuests = wedding.guests.length;
   const attending = wedding.guests.filter(
-    (g) => g.attendanceStatus === "attending"
+    (guest) => guest.attendanceStatus === "attending"
   ).length;
   const pending = wedding.guests.filter(
-    (g) => g.attendanceStatus === "pending"
-  ).length;
-  const declined = wedding.guests.filter(
-    (g) => g.attendanceStatus === "declined"
+    (guest) => guest.attendanceStatus === "pending"
   ).length;
   const tableCount = wedding.tables.length;
 
   const quickLinks = [
     {
       label: "スケジュール",
-      href: `/weddings/${weddingId}/schedule`,
+      href: `/weddings/${params.weddingId}/schedule`,
       icon: Calendar,
-      description: "マイルストーン・タスク管理",
+      description: "マイルストーンとタスクを管理",
     },
     {
       label: "ゲスト管理",
-      href: `/weddings/${weddingId}/guests`,
+      href: `/weddings/${params.weddingId}/guests`,
       icon: Users,
-      description: "ゲストの追加・出欠管理",
+      description: "ゲストの登録と出欠確認",
     },
     {
       label: "席次表",
-      href: `/weddings/${weddingId}/seating`,
+      href: `/weddings/${params.weddingId}/seating`,
       icon: Grid3X3,
-      description: "テーブル・座席配置",
+      description: "テーブル配置と座席管理",
     },
     {
       label: "引き出物",
-      href: `/weddings/${weddingId}/gifts`,
+      href: `/weddings/${params.weddingId}/gifts`,
       icon: Gift,
       description: "引き出物の管理",
     },
     {
       label: "音楽",
-      href: `/weddings/${weddingId}/playlist`,
+      href: `/weddings/${params.weddingId}/playlist`,
       icon: Music,
-      description: "BGM・プレイリスト",
+      description: "BGMとプレイリスト管理",
     },
     {
       label: "当日タイムライン",
-      href: `/weddings/${weddingId}/day-of`,
+      href: `/weddings/${params.weddingId}/day-of`,
       icon: Clock,
-      description: "当日の進行表",
+      description: "当日の進行管理",
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header section */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -137,26 +129,23 @@ export default async function WeddingOverviewPage({
           </div>
           <p className="mt-1 text-muted-foreground">
             {formatDate(wedding.weddingDate)}
-            {wedding.venue && ` / ${wedding.venue}`}
+            {wedding.venue ? ` / ${wedding.venue}` : ""}
           </p>
         </div>
         <div className="text-right">
           {days > 0 ? (
             <div>
               <span className="text-3xl font-bold text-primary">{days}</span>
-              <span className="ml-1 text-lg text-muted-foreground">
-                日後
-              </span>
+              <span className="ml-1 text-lg text-muted-foreground">日後</span>
             </div>
           ) : days === 0 ? (
             <span className="text-2xl font-bold text-primary">本日</span>
           ) : (
-            <span className="text-lg text-muted-foreground">終了済み</span>
+            <span className="text-lg text-muted-foreground">挙式済み</span>
           )}
         </div>
       </div>
 
-      {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -177,7 +166,7 @@ export default async function WeddingOverviewPage({
             <div className="text-2xl font-bold">{attending}名</div>
             {totalGuests > 0 && (
               <p className="text-xs text-muted-foreground">
-                全体の{Math.round((attending / totalGuests) * 100)}%
+                全体の {Math.round((attending / totalGuests) * 100)}%
               </p>
             )}
           </CardContent>
@@ -204,32 +193,25 @@ export default async function WeddingOverviewPage({
         </Card>
       </div>
 
-      {/* Budget and milestones row */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Budget */}
         {wedding.budget && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">予算概要</CardTitle>
+              <CardTitle className="text-base">予算管理</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatYen(wedding.budget)}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                総予算
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">登録済み予算</p>
             </CardContent>
           </Card>
         )}
 
-        {/* Upcoming milestones */}
         <Card className={wedding.budget ? "" : "lg:col-span-2"}>
           <CardHeader>
-            <CardTitle className="text-base">
-              今後のマイルストーン
-            </CardTitle>
-            <CardDescription>期日が近い項目</CardDescription>
+            <CardTitle className="text-base">今後のマイルストーン</CardTitle>
+            <CardDescription>期日が近いものを表示しています</CardDescription>
           </CardHeader>
           <CardContent>
             {wedding.milestones.length === 0 ? (
@@ -260,8 +242,8 @@ export default async function WeddingOverviewPage({
                           milestoneDays < 0
                             ? "font-medium text-destructive"
                             : milestoneDays <= 7
-                            ? "font-medium text-yellow-600"
-                            : "text-muted-foreground"
+                              ? "font-medium text-yellow-600"
+                              : "text-muted-foreground"
                         }`}
                       >
                         {formatDate(milestone.dueDate)}
@@ -277,7 +259,6 @@ export default async function WeddingOverviewPage({
 
       <Separator />
 
-      {/* Quick links */}
       <div>
         <h2 className="mb-4 text-lg font-semibold">セクション</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

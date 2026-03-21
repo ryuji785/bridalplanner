@@ -1,0 +1,86 @@
+
+> bridalplanner@0.1.0 build
+> next build
+
+   Creating an optimized production build ...
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\bridalplanner\.next\cache\webpack\server-production\0.pack_' -> 'C:\bridalplanner\.next\cache\webpack\server-production\0.pack'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\bridalplanner\.next\cache\webpack\edge-server-production\0.pack_' -> 'C:\bridalplanner\.next\cache\webpack\edge-server-production\0.pack'
+Failed to compile.
+
+./src/actions/gift-actions.ts
+Error: 
+  [31mx[0m To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention
+   ,-[[36;1;4mC:\bridalplanner\src\actions\gift-actions.ts[0m:1:1]
+ [2m1[0m | "use server";
+   : [31;1m^^^^^^^^^^^^[0m
+ [2m2[0m | 
+ [2m3[0m | import { revalidatePath } from "next/cache";
+ [2m4[0m | import { prisma } from "@/lib/db";
+   `----
+
+Import trace for requested module:
+./src/actions/gift-actions.ts
+./src/components/gifts/gift-catalog.tsx
+
+./src/actions/guest-actions.ts
+Error: 
+  [31mx[0m To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention
+   ,-[[36;1;4mC:\bridalplanner\src\actions\guest-actions.ts[0m:1:1]
+ [2m1[0m | "use server";
+   : [31;1m^^^^^^^^^^^^[0m
+ [2m2[0m | 
+ [2m3[0m | import { revalidatePath } from "next/cache";
+ [2m4[0m | import { prisma } from "@/lib/db";
+   `----
+
+Import trace for requested module:
+./src/actions/guest-actions.ts
+./src/components/guests/guest-table.tsx
+
+./src/actions/milestone-actions.ts
+Error: 
+  [31mx[0m To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention
+   ,-[[36;1;4mC:\bridalplanner\src\actions\milestone-actions.ts[0m:1:1]
+ [2m1[0m | "use server";
+   : [31;1m^^^^^^^^^^^^[0m
+ [2m2[0m | 
+ [2m3[0m | import { revalidatePath } from "next/cache";
+ [2m4[0m | import { prisma } from "@/lib/db";
+   `----
+
+Import trace for requested module:
+./src/actions/milestone-actions.ts
+./src/app/(dashboard)/weddings/[weddingId]/schedule/schedule-header.tsx
+
+./src/actions/seating-actions.ts
+Error: 
+  [31mx[0m To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention
+   ,-[[36;1;4mC:\bridalplanner\src\actions\seating-actions.ts[0m:1:1]
+ [2m1[0m | "use server";
+   : [31;1m^^^^^^^^^^^^[0m
+ [2m2[0m | 
+ [2m3[0m | import { revalidatePath } from "next/cache";
+ [2m4[0m | import { prisma } from "@/lib/db";
+   `----
+
+Import trace for requested module:
+./src/actions/seating-actions.ts
+./src/components/seating/floor-plan-canvas.tsx
+
+./src/actions/timeline-actions.ts
+Error: 
+  [31mx[0m To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention
+   ,-[[36;1;4mC:\bridalplanner\src\actions\timeline-actions.ts[0m:1:1]
+ [2m1[0m | "use server";
+   : [31;1m^^^^^^^^^^^^[0m
+ [2m2[0m | 
+ [2m3[0m | import { revalidatePath } from "next/cache";
+ [2m4[0m | import { prisma } from "@/lib/db";
+   `----
+
+Import trace for requested module:
+./src/actions/timeline-actions.ts
+./src/components/day-of/timeline-editor.tsx
+
+
+> Build failed because of webpack errors

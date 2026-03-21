@@ -1,0 +1,385 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
+import { requireWeddingAccess } from "@/lib/auth-helpers";
+import {
+  giftCreateSchema,
+  giftUpdateSchema,
+  giftGroupCreateSchema,
+  giftAssignmentSchema,
+} from "@/lib/validators/gift";
+
+function revalidateGiftPath(weddingId: string) {
+  revalidatePath(`/weddings/${weddingId}/gifts`);
+}
+
+export async function getGifts(weddingId: string) {
+  await requireWeddingAccess(weddingId);
+
+  return prisma.gift.findMany({
+    where: { weddingId },
+    include: {
+      assignments: {
+        include: {
+          guest: true,
+          group: true,
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function createGift(weddingId: string, formData: FormData) {
+  await requireWeddingAccess(weddingId);
+
+  const raw = {
+    name: formData.get("name") as string,
+    category: (formData.get("category") as string) || undefined,
+    unitPrice: Number(formData.get("unitPrice")),
+    supplier: (formData.get("supplier") as string) || undefined,
+    note: (formData.get("note") as string) || undefined,
+  };
+
+  const parsed = giftCreateSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  await prisma.gift.create({
+    data: {
+      name: parsed.data.name,
+      category: parsed.data.category || null,
+      unitPrice: parsed.data.unitPrice,
+      supplier: parsed.data.supplier || null,
+      note: parsed.data.note || null,
+      weddingId,
+    },
+  });
+
+  revalidateGiftPath(weddingId);
+  return { success: true as const };
+}
+
+export async function updateGift(giftId: string, formData: FormData) {
+  const gift = await prisma.gift.findUniqueOrThrow({
+    where: { id: giftId },
+  });
+
+  await requireWeddingAccess(gift.weddingId);
+
+  const raw: Record<string, unknown> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") {
+      raw[key] = value === "" ? undefined : value;
+    }
+  }
+
+  if (raw.unitPrice !== undefined) {
+    raw.unitPrice = Number(raw.unitPrice);
+  }
+
+  const parsed = giftUpdateSchema.safeParse(raw);
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const data: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed.data)) {
+    if (value !== undefined) {
+      data[key] = value;
+    }
+  }
+
+  await prisma.gift.update({
+    where: { id: giftId },
+    data: {
+      ...data,
+      category: data.category ?? null,
+      supplier: data.supplier ?? null,
+      note: data.note ?? null,
+    },
+  });
+
+  revalidateGiftPath(gift.weddingId);
+  return { success: true as const };
+}
+
+export async function deleteGift(giftId: string) {
+  const gift = await prisma.gift.findUniqueOrThrow({
+    where: { id: giftId },
+  });
+
+  await requireWeddingAccess(gift.weddingId);
+
+  await prisma.gift.delete({
+    where: { id: giftId },
+  });
+
+  revalidateGiftPath(gift.weddingId);
+  return { success: true as const };
+}
+
+export async function getGiftGroups(weddingId: string) {
+  await requireWeddingAccess(weddingId);
+
+  return prisma.giftGroup.findMany({
+    where: { weddingId },
+    include: {
+      assignments: {
+        include: {
+          gift: true,
+          guest: true,
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function createGiftGroup(weddingId: string, formData: FormData) {
+  await requireWeddingAccess(weddingId);
+
+  const parsed = giftGroupCreateSchema.safeParse({
+    name: formData.get("name") as string,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  await prisma.giftGroup.create({
+    data: {
+      name: parsed.data.name,
+      weddingId,
+    },
+  });
+
+  revalidateGiftPath(weddingId);
+  return { success: true as const };
+}
+
+export async function deleteGiftGroup(groupId: string) {
+  const group = await prisma.giftGroup.findUniqueOrThrow({
+    where: { id: groupId },
+  });
+
+  await requireWeddingAccess(group.weddingId);
+
+  await prisma.giftAssignment.deleteMany({
+    where: { groupId },
+  });
+
+  await prisma.giftGroup.delete({
+    where: { id: groupId },
+  });
+
+  revalidateGiftPath(group.weddingId);
+  return { success: true as const };
+}
+
+export async function assignGiftToGuest(
+  giftId: string,
+  guestId: string,
+  quantity: number = 1
+) {
+  const gift = await prisma.gift.findUniqueOrThrow({
+    where: { id: giftId },
+  });
+
+  await requireWeddingAccess(gift.weddingId);
+
+  const guest = await prisma.guest.findFirst({
+    where: { id: guestId, weddingId: gift.weddingId },
+    select: { id: true },
+  });
+
+  if (!guest) {
+    return {
+      success: false as const,
+      errors: { guestId: ["同じ結婚式のゲストを選択してください"] },
+    };
+  }
+
+  const parsed = giftAssignmentSchema.safeParse({ giftId, guestId, quantity });
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existingAssignment = await prisma.giftAssignment.findFirst({
+    where: {
+      giftId,
+      guestId,
+      groupId: null,
+    },
+  });
+
+  if (existingAssignment) {
+    await prisma.giftAssignment.update({
+      where: { id: existingAssignment.id },
+      data: {
+        quantity: existingAssignment.quantity + quantity,
+      },
+    });
+  } else {
+    await prisma.giftAssignment.create({
+      data: {
+        giftId,
+        guestId,
+        quantity,
+      },
+    });
+  }
+
+  revalidateGiftPath(gift.weddingId);
+  return { success: true as const };
+}
+
+export async function assignGiftToGroup(
+  giftId: string,
+  groupId: string,
+  quantity: number = 1
+) {
+  const gift = await prisma.gift.findUniqueOrThrow({
+    where: { id: giftId },
+  });
+
+  await requireWeddingAccess(gift.weddingId);
+
+  const group = await prisma.giftGroup.findFirst({
+    where: { id: groupId, weddingId: gift.weddingId },
+    select: { id: true },
+  });
+
+  if (!group) {
+    return {
+      success: false as const,
+      errors: { groupId: ["同じ結婚式のグループを選択してください"] },
+    };
+  }
+
+  const parsed = giftAssignmentSchema.safeParse({ giftId, groupId, quantity });
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const existingAssignment = await prisma.giftAssignment.findFirst({
+    where: {
+      giftId,
+      groupId,
+      guestId: null,
+    },
+  });
+
+  if (existingAssignment) {
+    await prisma.giftAssignment.update({
+      where: { id: existingAssignment.id },
+      data: {
+        quantity: existingAssignment.quantity + quantity,
+      },
+    });
+  } else {
+    await prisma.giftAssignment.create({
+      data: {
+        giftId,
+        groupId,
+        quantity,
+      },
+    });
+  }
+
+  revalidateGiftPath(gift.weddingId);
+  return { success: true as const };
+}
+
+export async function removeGiftAssignment(assignmentId: string) {
+  const assignment = await prisma.giftAssignment.findUniqueOrThrow({
+    where: { id: assignmentId },
+    include: { gift: true },
+  });
+
+  await requireWeddingAccess(assignment.gift.weddingId);
+
+  await prisma.giftAssignment.delete({
+    where: { id: assignmentId },
+  });
+
+  revalidateGiftPath(assignment.gift.weddingId);
+  return { success: true as const };
+}
+
+export async function getGiftBudgetSummary(weddingId: string) {
+  await requireWeddingAccess(weddingId);
+
+  const gifts = await prisma.gift.findMany({
+    where: { weddingId },
+    include: {
+      assignments: true,
+    },
+  });
+
+  const totalItems = gifts.length;
+  let totalCost = 0;
+  let totalAssignments = 0;
+  const assignedTargets = new Set<string>();
+
+  const categoryBreakdown: Record<string, { count: number; totalCost: number }> = {
+    main: { count: 0, totalCost: 0 },
+    sweets: { count: 0, totalCost: 0 },
+    petite: { count: 0, totalCost: 0 },
+  };
+
+  for (const gift of gifts) {
+    const assignmentQuantity = gift.assignments.reduce(
+      (sum, assignment) => sum + assignment.quantity,
+      0
+    );
+
+    totalCost += gift.unitPrice * assignmentQuantity;
+    totalAssignments += assignmentQuantity;
+
+    gift.assignments.forEach((assignment) => {
+      if (assignment.guestId) assignedTargets.add(`guest:${assignment.guestId}`);
+      if (assignment.groupId) assignedTargets.add(`group:${assignment.groupId}`);
+    });
+
+    if (gift.category && categoryBreakdown[gift.category]) {
+      categoryBreakdown[gift.category].count += assignmentQuantity;
+      categoryBreakdown[gift.category].totalCost +=
+        gift.unitPrice * assignmentQuantity;
+    }
+  }
+
+  const assignedTargetCount = assignedTargets.size;
+  const averagePerTarget =
+    assignedTargetCount > 0 ? Math.round(totalCost / assignedTargetCount) : 0;
+
+  return {
+    totalItems,
+    totalCost,
+    averagePerTarget,
+    totalAssignments,
+    assignedTargetCount,
+    categoryBreakdown,
+  };
+}

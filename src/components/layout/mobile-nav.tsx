@@ -18,6 +18,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
     } else {
       document.body.style.overflow = "";
     }
+
     return () => {
       document.body.style.overflow = "";
     };
@@ -25,7 +26,6 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className={cn(
           "fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden",
@@ -34,7 +34,6 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         onClick={onClose}
       />
 
-      {/* Slide-out panel */}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform md:hidden",

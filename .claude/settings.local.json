@@ -16,7 +16,14 @@
       "Bash(npx next:*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(node -e \"console.log\\(require\\(''C:/bridalplanner/node_modules/tailwindcss/package.json''\\).version\\)\")",
-      "Bash(ls C:/bridalplanner/src/app/\\\\\\(dashboard\\\\\\)/page.tsx)"
+      "Bash(ls C:/bridalplanner/src/app/\\\\\\(dashboard\\\\\\)/page.tsx)",
+      "Bash(gh auth:*)",
+      "Bash(gh.exe auth:*)",
+      "Bash(where gh.exe)",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/bridalplanner/$LOCALAPPDATA/Programs/GitHub CLI/**)",
+      "Read(//c/bridalplanner/$HOME/scoop/shims/**)",
+      "Bash(ls C:/bridalplanner/src/app/\\\\\\(dashboard\\\\\\)/weddings/[weddingId]/seating)"
     ]
   }
 }

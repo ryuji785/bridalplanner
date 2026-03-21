@@ -31,12 +31,20 @@ const mainNav = [
 function getWeddingNav(weddingId: string) {
   return [
     { label: "概要", href: `/weddings/${weddingId}`, icon: Home },
-    { label: "スケジュール", href: `/weddings/${weddingId}/schedule`, icon: Calendar },
+    {
+      label: "スケジュール",
+      href: `/weddings/${weddingId}/schedule`,
+      icon: Calendar,
+    },
     { label: "ゲスト管理", href: `/weddings/${weddingId}/guests`, icon: Users },
     { label: "席次表", href: `/weddings/${weddingId}/seating`, icon: Grid3X3 },
     { label: "引き出物", href: `/weddings/${weddingId}/gifts`, icon: Gift },
     { label: "音楽", href: `/weddings/${weddingId}/playlist`, icon: Music },
-    { label: "当日タイムライン", href: `/weddings/${weddingId}/day-of`, icon: Clock },
+    {
+      label: "当日タイムライン",
+      href: `/weddings/${weddingId}/day-of`,
+      icon: Clock,
+    },
   ];
 }
 
@@ -51,12 +59,7 @@ export function Sidebar({ className }: SidebarProps) {
   const weddingNav = weddingId ? getWeddingNav(weddingId) : [];
 
   return (
-    <aside
-      className={cn(
-        "flex h-full w-64 flex-col border-r bg-card",
-        className
-      )}
-    >
+    <aside className={cn("flex h-full w-64 flex-col border-r bg-card", className)}>
       <div className="flex h-16 items-center gap-2 px-6">
         <Heart className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold tracking-tight">
@@ -68,8 +71,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {mainNav.map((item) => {
-          const isActive =
-            pathname === "/" || pathname === "/dashboard";
+          const isActive = pathname === "/" || pathname === "/dashboard";
           return (
             <Link
               key={item.href}
