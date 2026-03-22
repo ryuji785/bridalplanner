@@ -1,27 +1,27 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
+  PointerSensor,
   useSensor,
   useSensors,
-  PointerSensor,
-  type DragStartEvent,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Maximize } from "lucide-react";
-import { TableComponent } from "./table-component";
-import { GuestSidebar } from "./guest-sidebar";
-import { SeatingToolbar } from "./seating-toolbar";
+import { Maximize, ZoomIn, ZoomOut } from "lucide-react";
 import {
-  updateTablePosition,
   assignGuestToSeat,
   getSeatingData,
+  updateTablePosition,
 } from "@/actions/seating-actions";
 import type { SeatingData } from "@/actions/seating-actions";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { GuestSidebar } from "./guest-sidebar";
+import { SeatingToolbar } from "./seating-toolbar";
+import { TableComponent } from "./table-component";
 
 type FloorPlanCanvasProps = {
   initialData: SeatingData;
@@ -52,9 +52,7 @@ export function FloorPlanCanvas({
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
+      activationConstraint: { distance: 5 },
     })
   );
 
@@ -63,14 +61,20 @@ export function FloorPlanCanvas({
     setData(nextData);
   }, [weddingId]);
 
-  const handleZoomIn = () => setZoom((current) => Math.min(200, current + 10));
-  const handleZoomOut = () => setZoom((current) => Math.max(30, current - 10));
-  const handleZoomReset = () => {
+  function handleZoomIn() {
+    setZoom((current) => Math.min(200, current + 10));
+  }
+
+  function handleZoomOut() {
+    setZoom((current) => Math.max(30, current - 10));
+  }
+
+  function handleZoomReset() {
     setZoom(100);
     setPanOffset({ x: 0, y: 0 });
-  };
+  }
 
-  const handleCanvasMouseDown = (event: React.MouseEvent) => {
+  function handleCanvasMouseDown(event: React.MouseEvent) {
     if (event.button === 1 || (event.button === 0 && event.altKey)) {
       event.preventDefault();
       setIsPanning(true);
@@ -79,22 +83,22 @@ export function FloorPlanCanvas({
         y: event.clientY - panOffset.y,
       });
     }
-  };
+  }
 
-  const handleCanvasMouseMove = (event: React.MouseEvent) => {
+  function handleCanvasMouseMove(event: React.MouseEvent) {
     if (isPanning) {
       setPanOffset({
         x: event.clientX - panStart.x,
         y: event.clientY - panStart.y,
       });
     }
-  };
+  }
 
-  const handleCanvasMouseUp = () => {
+  function handleCanvasMouseUp() {
     setIsPanning(false);
-  };
+  }
 
-  const handleTableMouseDown = (tableId: string, event: React.MouseEvent) => {
+  function handleTableMouseDown(tableId: string, event: React.MouseEvent) {
     if (event.button !== 0 || event.altKey) return;
 
     const target = event.target as HTMLElement;
@@ -113,7 +117,7 @@ export function FloorPlanCanvas({
         y: event.clientY - table.posY * (zoom / 100),
       });
     }
-  };
+  }
 
   useEffect(() => {
     if (!draggingTableId || !dragTableStart) return;
@@ -148,39 +152,35 @@ export function FloorPlanCanvas({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [draggingTableId, dragTableStart, zoom, data.tables]);
+  }, [data.tables, dragTableStart, draggingTableId, zoom]);
 
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    if (active.data.current?.type === "guest") {
-      setActiveDragGuest(active.data.current.guest);
+  function handleDragStart(event: DragStartEvent) {
+    if (event.active.data.current?.type === "guest") {
+      setActiveDragGuest(event.active.data.current.guest);
     }
-  };
+  }
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  async function handleDragEnd(event: DragEndEvent) {
     setActiveDragGuest(null);
 
     const { active, over } = event;
     if (!over || !active.data.current?.type) return;
 
-    if (
-      active.data.current.type === "guest" &&
-      over.data.current?.type === "seat"
-    ) {
+    if (active.data.current.type === "guest" && over.data.current?.type === "seat") {
       const guestId = active.data.current.guest.id;
       const { tableId, seatIndex } = over.data.current;
       await assignGuestToSeat(guestId, tableId, seatIndex);
       await refreshData();
     }
-  };
+  }
 
-  const handleWheel = (event: React.WheelEvent) => {
+  function handleWheel(event: React.WheelEvent) {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault();
       const delta = event.deltaY > 0 ? -5 : 5;
       setZoom((current) => Math.max(30, Math.min(200, current + delta)));
     }
-  };
+  }
 
   return (
     <DndContext
@@ -251,9 +251,11 @@ export function FloorPlanCanvas({
               {data.tables.length === 0 ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-muted-foreground">
-                    <p className="mb-1 text-lg font-medium">テーブルがありません</p>
+                    <p className="mb-1 text-lg font-medium">
+                      テーブルがまだありません
+                    </p>
                     <p className="text-sm">
-                      「テーブルを追加」から席次表を作成してください。
+                      「テーブル追加」から会場レイアウトを作成してください。
                     </p>
                   </div>
                 </div>
@@ -267,10 +269,7 @@ export function FloorPlanCanvas({
                         ? "z-20 cursor-grabbing"
                         : "z-10 cursor-grab"
                     )}
-                    style={{
-                      left: table.posX,
-                      top: table.posY,
-                    }}
+                    style={{ left: table.posX, top: table.posY }}
                     onMouseDown={(event) => handleTableMouseDown(table.id, event)}
                   >
                     <TableComponent
@@ -289,7 +288,7 @@ export function FloorPlanCanvas({
       </div>
 
       <DragOverlay>
-        {activeDragGuest && (
+        {activeDragGuest ? (
           <div className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm shadow-lg">
             <span
               className={cn(
@@ -299,7 +298,7 @@ export function FloorPlanCanvas({
             />
             {activeDragGuest.familyName} {activeDragGuest.givenName}
           </div>
-        )}
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

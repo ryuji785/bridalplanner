@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -14,6 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,28 +25,28 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setIsLoading(true);
     setError("");
 
     if (password !== confirmPassword) {
-      setError("パスワードが一致しません");
+      setError("パスワードが一致しません。");
       setIsLoading(false);
       return;
     }
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, role }),
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (!res.ok) {
-        setError(data.error || "登録に失敗しました");
+      if (!response.ok) {
+        setError(data.error || "登録に失敗しました。");
         return;
       }
 
@@ -61,26 +61,26 @@ export default function RegisterPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">新規登録</CardTitle>
+        <CardTitle className="text-center text-2xl">新規登録</CardTitle>
         <CardDescription className="text-center">
-          アカウントを作成してください
+          アカウントを作成して利用を開始します
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
-          {error && (
+          {error ? (
             <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
               {error}
             </div>
-          )}
+          ) : null}
           <div className="space-y-2">
-            <Label htmlFor="name">お名前</Label>
+            <Label htmlFor="name">名前</Label>
             <Input
               id="name"
               type="text"
               placeholder="山田 太郎"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               required
               disabled={isLoading}
             />
@@ -92,7 +92,7 @@ export default function RegisterPage() {
               type="email"
               placeholder="mail@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               required
               disabled={isLoading}
             />
@@ -104,19 +104,19 @@ export default function RegisterPage() {
               type="password"
               placeholder="8文字以上"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               required
               minLength={8}
               disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">パスワード（確認）</Label>
+            <Label htmlFor="confirmPassword">パスワード確認</Label>
             <Input
               id="confirmPassword"
               type="password"
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(event) => setConfirmPassword(event.target.value)}
               required
               minLength={8}
               disabled={isLoading}
@@ -125,25 +125,25 @@ export default function RegisterPage() {
           <div className="space-y-2">
             <Label>役割</Label>
             <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
                   name="role"
                   value="planner"
                   checked={role === "planner"}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(event) => setRole(event.target.value)}
                   disabled={isLoading}
                   className="accent-primary"
                 />
                 <span className="text-sm">プランナー</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
                   name="role"
                   value="couple"
                   checked={role === "couple"}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(event) => setRole(event.target.value)}
                   disabled={isLoading}
                   className="accent-primary"
                 />
@@ -154,7 +154,7 @@ export default function RegisterPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "登録中..." : "アカウント作成"}
+            {isLoading ? "登録中..." : "アカウントを作成"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             すでにアカウントをお持ちですか？{" "}

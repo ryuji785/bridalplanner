@@ -1,20 +1,16 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { SongForm } from "./song-form";
 import {
-  updateSection,
   deleteSection,
   deleteSong,
+  updateSection,
 } from "@/actions/playlist-actions";
 
 type Song = {
@@ -33,40 +29,48 @@ type Section = {
   songs: Song[];
 };
 
-function formatDuration(seconds: number): string {
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
-
-function formatTotalDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const min = Math.floor((seconds % 3600) / 60);
-  const sec = seconds % 60;
-  if (hours > 0) {
-    return `${hours}時間${min}分`;
-  }
-  return `${min}分${sec > 0 ? `${sec}秒` : ""}`;
-}
-
 type Props = {
   sections: Section[];
 };
 
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remain = seconds % 60;
+  return `${minutes}:${remain.toString().padStart(2, "0")}`;
+}
+
+function formatTotalDuration(seconds: number): string {
+  if (seconds <= 0) return "";
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (hours > 0) {
+    return `${hours}時間 ${minutes}分`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}分`;
+  }
+
+  return `${seconds}秒`;
+}
+
 export function SectionList({ sections }: Props) {
+  const router = useRouter();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(sections.map((s) => s.id))
+    new Set(sections.map((section) => section.id))
   );
   const [songFormOpen, setSongFormOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | undefined>();
-  const [activeSectionId, setActiveSectionId] = useState<string>("");
+  const [activeSectionId, setActiveSectionId] = useState("");
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const sectionInputRef = useRef<HTMLInputElement>(null);
 
   function toggleSection(sectionId: string) {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
+    setExpandedSections((current) => {
+      const next = new Set(current);
       if (next.has(sectionId)) {
         next.delete(sectionId);
       } else {
@@ -89,16 +93,28 @@ export function SectionList({ sections }: Props) {
   }
 
   function handleDeleteSong(songId: string) {
-    if (!confirm("この曲を削除しますか？")) return;
+    if (!confirm("この曲を削除しますか？")) {
+      return;
+    }
+
     startTransition(async () => {
-      await deleteSong(songId);
+      const result = await deleteSong(songId);
+      if (result.success) {
+        router.refresh();
+      }
     });
   }
 
   function handleDeleteSection(sectionId: string) {
-    if (!confirm("このセクションと含まれる曲をすべて削除しますか？")) return;
+    if (!confirm("このセクションと中にある曲を削除しますか？")) {
+      return;
+    }
+
     startTransition(async () => {
-      await deleteSection(sectionId);
+      const result = await deleteSection(sectionId);
+      if (result.success) {
+        router.refresh();
+      }
     });
   }
 
@@ -108,24 +124,29 @@ export function SectionList({ sections }: Props) {
   }
 
   function handleRenameSave(sectionId: string) {
-    const name = sectionInputRef.current?.value;
+    const name = sectionInputRef.current?.value?.trim();
     if (!name) return;
 
     const formData = new FormData();
     formData.set("name", name);
 
     startTransition(async () => {
-      await updateSection(sectionId, formData);
-      setEditingSectionId(null);
+      const result = await updateSection(sectionId, formData);
+      if (result.success) {
+        setEditingSectionId(null);
+        router.refresh();
+      }
     });
   }
 
   if (sections.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p className="text-lg mb-2">セクションがまだありません</p>
+      <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
+        <p className="mb-2 text-lg font-medium">
+          セクションがまだ作成されていません
+        </p>
         <p className="text-sm">
-          テンプレートセクションを作成するか、手動でセクションを追加してください
+          テンプレート追加またはセクション追加からプレイリストを作成できます。
         </p>
       </div>
     );
@@ -137,22 +158,20 @@ export function SectionList({ sections }: Props) {
         {sections.map((section) => {
           const isExpanded = expandedSections.has(section.id);
           const totalDuration = section.songs.reduce(
-            (sum, s) => sum + (s.durationSec ?? 0),
+            (sum, song) => sum + (song.durationSec ?? 0),
             0
           );
 
           return (
             <Card key={section.id}>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <button
                       onClick={() => toggleSection(section.id)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-lg text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <span className="text-lg">
-                        {isExpanded ? "▼" : "▶"}
-                      </span>
+                      {isExpanded ? "▾" : "▸"}
                     </button>
 
                     {editingSectionId === section.id ? (
@@ -161,11 +180,13 @@ export function SectionList({ sections }: Props) {
                           ref={sectionInputRef}
                           defaultValue={section.name}
                           className="h-8 w-48"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter")
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
                               handleRenameSave(section.id);
-                            if (e.key === "Escape")
+                            }
+                            if (event.key === "Escape") {
                               setEditingSectionId(null);
+                            }
                           }}
                         />
                         <Button
@@ -178,7 +199,7 @@ export function SectionList({ sections }: Props) {
                       </div>
                     ) : (
                       <CardTitle
-                        className="text-base cursor-pointer"
+                        className="cursor-pointer text-base"
                         onClick={() => toggleSection(section.id)}
                       >
                         {section.name}
@@ -186,16 +207,16 @@ export function SectionList({ sections }: Props) {
                     )}
 
                     <Badge variant="secondary" className="text-xs">
-                      {section.songs.length}曲
+                      {section.songs.length} 曲
                     </Badge>
-                    {totalDuration > 0 && (
+                    {totalDuration > 0 ? (
                       <Badge variant="outline" className="text-xs">
                         {formatTotalDuration(totalDuration)}
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="flex gap-1">
+                  <div className="flex shrink-0 gap-1">
                     <Button
                       variant="outline"
                       size="sm"
@@ -223,52 +244,48 @@ export function SectionList({ sections }: Props) {
                 </div>
               </CardHeader>
 
-              {isExpanded && (
+              {isExpanded ? (
                 <CardContent>
                   {section.songs.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">
-                      曲がまだ追加されていません
+                    <p className="py-2 text-sm text-muted-foreground">
+                      このセクションにはまだ曲がありません。
                     </p>
                   ) : (
                     <div className="space-y-1">
                       {section.songs.map((song, index) => (
                         <div
                           key={song.id}
-                          className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50"
+                          className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/50"
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="text-sm text-muted-foreground w-6 text-right shrink-0">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="w-6 shrink-0 text-right text-sm text-muted-foreground">
                               {index + 1}
                             </span>
                             <div className="min-w-0">
-                              <p className="font-medium truncate">
-                                {song.title}
-                              </p>
-                              <p className="text-sm text-muted-foreground truncate">
+                              <p className="truncate font-medium">{song.title}</p>
+                              <p className="truncate text-sm text-muted-foreground">
                                 {song.artist}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {song.durationSec != null && (
-                              <span className="text-sm text-muted-foreground font-mono">
+                          <div className="flex shrink-0 items-center gap-2">
+                            {song.durationSec != null ? (
+                              <span className="font-mono text-sm text-muted-foreground">
                                 {formatDuration(song.durationSec)}
                               </span>
-                            )}
-                            {song.note && (
+                            ) : null}
+                            {song.note ? (
                               <Badge
                                 variant="outline"
-                                className="text-xs max-w-[120px] truncate"
+                                className="max-w-[120px] truncate text-xs"
                               >
                                 {song.note}
                               </Badge>
-                            )}
+                            ) : null}
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                handleEditSong(section.id, song)
-                              }
+                              onClick={() => handleEditSong(section.id, song)}
                             >
                               編集
                             </Button>
@@ -287,7 +304,7 @@ export function SectionList({ sections }: Props) {
                     </div>
                   )}
                 </CardContent>
-              )}
+              ) : null}
             </Card>
           );
         })}

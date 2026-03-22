@@ -13,33 +13,33 @@ type GuestStatsProps = {
 export function GuestStats({ guests }: GuestStatsProps) {
   const total = guests.length;
   const attending = guests.filter(
-    (g) => g.attendanceStatus === "attending"
+    (guest) => guest.attendanceStatus === "attending"
   ).length;
   const declined = guests.filter(
-    (g) => g.attendanceStatus === "declined"
+    (guest) => guest.attendanceStatus === "declined"
   ).length;
   const pending = guests.filter(
-    (g) => g.attendanceStatus === "pending"
+    (guest) => guest.attendanceStatus === "pending"
   ).length;
 
-  const brideSide = guests.filter((g) => g.side === "bride");
-  const groomSide = guests.filter((g) => g.side === "groom");
+  const brideSide = guests.filter((guest) => guest.side === "bride");
+  const groomSide = guests.filter((guest) => guest.side === "groom");
 
   const brideAttending = brideSide.filter(
-    (g) => g.attendanceStatus === "attending"
+    (guest) => guest.attendanceStatus === "attending"
   ).length;
   const groomAttending = groomSide.filter(
-    (g) => g.attendanceStatus === "attending"
+    (guest) => guest.attendanceStatus === "attending"
   ).length;
 
   const stats = [
     {
-      label: "招待者合計",
+      label: "総ゲスト数",
       value: total,
       sub: `新婦側 ${brideSide.length} / 新郎側 ${groomSide.length}`,
     },
     {
-      label: "出席予定",
+      label: "出席人数",
       value: attending,
       sub: `新婦側 ${brideAttending} / 新郎側 ${groomAttending}`,
       color: "text-green-600",
@@ -50,7 +50,7 @@ export function GuestStats({ guests }: GuestStatsProps) {
       color: "text-red-600",
     },
     {
-      label: "未回答",
+      label: "未確認",
       value: pending,
       color: "text-gray-500",
     },
@@ -69,9 +69,9 @@ export function GuestStats({ guests }: GuestStatsProps) {
             <div className={`text-3xl font-bold ${stat.color ?? ""}`}>
               {stat.value}
             </div>
-            {stat.sub && (
+            {stat.sub ? (
               <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       ))}

@@ -16,7 +16,7 @@ export default async function SeatingPage({ params }: Props) {
       <div className="border-b px-4 py-3">
         <h1 className="text-xl font-bold">席次表</h1>
         <p className="text-sm text-muted-foreground">
-          テーブルの配置とゲストの座席を管理します。
+          テーブルの配置とゲストの着席状況を管理します。
         </p>
       </div>
       <div className="flex-1 overflow-hidden">

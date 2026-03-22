@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useRef } from "react";
+import { useRef, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,7 +65,9 @@ export function GiftForm({ weddingId, gift, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "ギフトを編集" : "ギフトを追加"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "ギフトを編集" : "ギフトを追加"}
+          </DialogTitle>
         </DialogHeader>
         <form
           key={gift?.id ?? "new"}
@@ -87,14 +89,14 @@ export function GiftForm({ weddingId, gift, open, onOpenChange }: Props) {
               <SelectContent>
                 <SelectItem value={NO_CATEGORY}>未設定</SelectItem>
                 <SelectItem value="main">メイン記念品</SelectItem>
-                <SelectItem value="sweets">引き菓子</SelectItem>
+                <SelectItem value="sweets">引菓子</SelectItem>
                 <SelectItem value="petite">プチギフト</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="unitPrice">単価（円） *</Label>
+            <Label htmlFor="unitPrice">単価（円）*</Label>
             <Input
               id="unitPrice"
               name="unitPrice"
@@ -133,7 +135,7 @@ export function GiftForm({ weddingId, gift, open, onOpenChange }: Props) {
               キャンセル
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "保存中..." : isEditing ? "更新" : "追加"}
+              {isPending ? "保存中..." : isEditing ? "更新する" : "追加する"}
             </Button>
           </DialogFooter>
         </form>

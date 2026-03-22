@@ -5,9 +5,9 @@ export const guestCreateSchema = z.object({
   givenName: z.string().min(1, "名を入力してください"),
   familyNameKana: z.string().optional(),
   givenNameKana: z.string().optional(),
-  relationship: z.string().min(1, "続柄を選択してください"),
+  relationship: z.string().min(1, "関係を入力してください"),
   side: z.enum(["bride", "groom"], {
-    required_error: "新郎側/新婦側を選択してください",
+    required_error: "新郎側・新婦側を選択してください",
   }),
   attendanceStatus: z
     .enum(["pending", "attending", "declined"])
@@ -16,7 +16,7 @@ export const guestCreateSchema = z.object({
   address: z.string().optional(),
   email: z
     .string()
-    .email("有効なメールアドレスを入力してください")
+    .email("正しいメールアドレスを入力してください")
     .optional()
     .or(z.literal("")),
   phone: z.string().optional(),

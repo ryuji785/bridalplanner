@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { TimelineEntryForm } from "./timeline-entry-form";
 import { deleteTimelineEntry } from "@/actions/timeline-actions";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ type Props = {
 };
 
 export function TimelineEditor({ entries, weddingId }: Props) {
+  const router = useRouter();
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | undefined>();
   const [formOpen, setFormOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -56,8 +58,12 @@ export function TimelineEditor({ entries, weddingId }: Props) {
 
   function handleDelete(entryId: string) {
     if (!confirm("このエントリーを削除しますか？")) return;
+
     startTransition(async () => {
-      await deleteTimelineEntry(entryId);
+      const result = await deleteTimelineEntry(entryId);
+      if (result.success) {
+        router.refresh();
+      }
     });
   }
 

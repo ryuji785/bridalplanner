@@ -1,17 +1,17 @@
 "use client";
 
-import { useTransition, useRef } from "react";
+import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   createTimelineEntry,
   updateTimelineEntry,
@@ -50,9 +51,10 @@ export function TimelineEntryForm({
   open,
   onOpenChange,
 }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const isEditing = !!entry;
+  const [isPending, startTransition] = useTransition();
+  const isEditing = Boolean(entry);
 
   function handleSubmit(formData: FormData) {
     if (formData.get("category") === NO_CATEGORY) {
@@ -61,12 +63,13 @@ export function TimelineEntryForm({
 
     startTransition(async () => {
       const result = isEditing
-        ? await updateTimelineEntry(entry.id, formData)
+        ? await updateTimelineEntry(entry!.id, formData)
         : await createTimelineEntry(weddingId, formData);
 
       if (result.success) {
         onOpenChange(false);
         formRef.current?.reset();
+        router.refresh();
       }
     });
   }
@@ -160,7 +163,7 @@ export function TimelineEntryForm({
               キャンセル
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "保存中..." : isEditing ? "更新" : "追加"}
+              {isPending ? "保存中..." : isEditing ? "更新する" : "追加する"}
             </Button>
           </DialogFooter>
         </form>

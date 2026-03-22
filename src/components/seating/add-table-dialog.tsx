@@ -1,37 +1,47 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Circle, RectangleHorizontal, Trash2 } from "lucide-react";
+import {
+  createTable,
+  deleteTable,
+  updateTable,
+  type SeatingTable,
+} from "@/actions/seating-actions";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { createTable } from "@/actions/seating-actions";
-import { Circle, RectangleHorizontal } from "lucide-react";
 
 const DEFAULT_NAMES = [
-  "高砂",
-  "親族",
-  "友人",
-  "会社",
-  "上司",
-  "恩師",
-  "受付",
-  "余興",
+  "親族席",
+  "友人席",
+  "会社関係",
+  "上司席",
+  "恩師席",
+  "主賓席",
+  "新郎親族",
+  "新婦親族",
   "A",
   "B",
   "C",
   "D",
   "E",
   "F",
-];
+] as const;
+
+const MIN_CAPACITY = 2;
+const MAX_CAPACITY = 20;
+
+type EditableTable = Pick<SeatingTable, "id" | "name" | "shape" | "capacity">;
 
 type AddTableDialogProps = {
   open: boolean;
@@ -39,6 +49,8 @@ type AddTableDialogProps = {
   weddingId: string;
   existingTableCount: number;
   onDataChange: () => void;
+  table?: EditableTable;
+  minCapacity?: number;
 };
 
 function getSuggestedName(existingTableCount: number) {
@@ -53,57 +65,121 @@ export function AddTableDialog({
   weddingId,
   existingTableCount,
   onDataChange,
+  table,
+  minCapacity = MIN_CAPACITY,
 }: AddTableDialogProps) {
-  const [name, setName] = useState(getSuggestedName(existingTableCount));
+  const [name, setName] = useState("");
   const [shape, setShape] = useState<"round" | "rectangle">("round");
-  const [capacity, setCapacity] = useState(8);
+  const [capacity, setCapacity] = useState(MIN_CAPACITY);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const isEditing = Boolean(table);
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) {
-      setName(getSuggestedName(existingTableCount));
-      setShape("round");
-      setCapacity(8);
+  const minimumCapacity = useMemo(
+    () => Math.max(MIN_CAPACITY, minCapacity),
+    [minCapacity]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+
+    setErrorMessage(null);
+
+    if (table) {
+      setName(table.name);
+      setShape(table.shape === "rectangle" ? "rectangle" : "round");
+      setCapacity(Math.max(minimumCapacity, table.capacity));
+      return;
+    }
+
+    setName(getSuggestedName(existingTableCount));
+    setShape("round");
+    setCapacity(Math.max(minimumCapacity, 8));
+  }, [existingTableCount, minimumCapacity, open, table]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setErrorMessage(null);
     }
 
     onOpenChange(nextOpen);
-  };
+  }
 
-  const handleSubmit = () => {
-    if (!name.trim()) return;
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setErrorMessage("テーブル名を入力してください。");
+      return;
+    }
+
+    setErrorMessage(null);
 
     startTransition(async () => {
-      const result = await createTable(weddingId, {
-        name: name.trim(),
-        shape,
-        capacity,
-      });
+      const result =
+        isEditing && table
+          ? await updateTable(table.id, {
+              name: trimmedName,
+              shape,
+              capacity,
+            })
+          : await createTable(weddingId, {
+              name: trimmedName,
+              shape,
+              capacity,
+            });
 
       if (result.success) {
         onDataChange();
         onOpenChange(false);
+      } else {
+        setErrorMessage(result.error);
       }
     });
-  };
+  }
+
+  function handleDelete() {
+    if (!table) return;
+
+    if (
+      !confirm(
+        `「${table.name}」を削除しますか？割り当て済みの席もまとめて削除されます。`
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      await deleteTable(table.id);
+      onDataChange();
+      onOpenChange(false);
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>テーブルを追加</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "テーブルを編集" : "テーブルを追加"}
+          </DialogTitle>
           <DialogDescription>
-            新しいテーブルの設定を入力してください。
+            {isEditing
+              ? "テーブル名、形、収容人数を変更できます。"
+              : "新しいテーブルの名前、形、収容人数を設定します。"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="table-name">テーブル名</Label>
             <Input
               id="table-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="例: 親族 / テーブル1"
+              placeholder="例: 親族席、友人席、テーブル1"
+              disabled={isPending}
             />
           </div>
 
@@ -113,6 +189,7 @@ export function AddTableDialog({
               <button
                 type="button"
                 onClick={() => setShape("round")}
+                disabled={isPending}
                 className={cn(
                   "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
                   shape === "round"
@@ -126,6 +203,7 @@ export function AddTableDialog({
               <button
                 type="button"
                 onClick={() => setShape("rectangle")}
+                disabled={isPending}
                 className={cn(
                   "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
                   shape === "rectangle"
@@ -140,58 +218,104 @@ export function AddTableDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="table-capacity">席数</Label>
+            <Label htmlFor="table-capacity">収容人数</Label>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setCapacity(Math.max(2, capacity - 1))}
-                disabled={capacity <= 2}
+                onClick={() =>
+                  setCapacity((current) => Math.max(minimumCapacity, current - 1))
+                }
+                disabled={isPending || capacity <= minimumCapacity}
               >
                 -
               </Button>
               <Input
                 id="table-capacity"
                 type="number"
-                min={2}
-                max={20}
+                min={minimumCapacity}
+                max={MAX_CAPACITY}
                 value={capacity}
                 onChange={(event) =>
                   setCapacity(
-                    Math.max(2, Math.min(20, parseInt(event.target.value, 10) || 2))
+                    Math.max(
+                      minimumCapacity,
+                      Math.min(
+                        MAX_CAPACITY,
+                        parseInt(event.target.value, 10) || minimumCapacity
+                      )
+                    )
                   )
                 }
-                className="h-8 w-16 text-center"
+                className="h-8 w-20 text-center"
+                disabled={isPending}
               />
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setCapacity(Math.min(20, capacity + 1))}
-                disabled={capacity >= 20}
+                onClick={() =>
+                  setCapacity((current) => Math.min(MAX_CAPACITY, current + 1))
+                }
+                disabled={isPending || capacity >= MAX_CAPACITY}
               >
                 +
               </Button>
               <span className="text-sm text-muted-foreground">名</span>
             </div>
+            {minimumCapacity > MIN_CAPACITY ? (
+              <p className="text-xs text-muted-foreground">
+                すでに席割りがあるため、{minimumCapacity}名未満にはできません。
+              </p>
+            ) : null}
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            キャンセル
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !name.trim()}>
-            {isPending ? "追加中..." : "追加"}
-          </Button>
-        </DialogFooter>
+          {errorMessage ? (
+            <p className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {isEditing ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isPending}
+                className="gap-1.5"
+              >
+                <Trash2 className="h-4 w-4" />
+                削除
+              </Button>
+            ) : (
+              <span />
+            )}
+
+            <DialogFooter className="gap-2 sm:space-x-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isPending}
+              >
+                キャンセル
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending
+                  ? isEditing
+                    ? "更新中..."
+                    : "追加中..."
+                  : isEditing
+                    ? "更新する"
+                    : "追加する"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

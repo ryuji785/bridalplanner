@@ -10,7 +10,8 @@ const notoSansJp = Noto_Sans_JP({
 
 export const metadata: Metadata = {
   title: "ブライダルプランナー",
-  description: "結婚式・披露宴のプランニングを支援するWebアプリケーション",
+  description:
+    "結婚式と披露宴のプランニングを一緒に進めるブライダルプランナー向けWebアプリケーション",
 };
 
 export default function RootLayout({

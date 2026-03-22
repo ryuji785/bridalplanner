@@ -36,7 +36,11 @@ function getWeddingNav(weddingId: string) {
       href: `/weddings/${weddingId}/schedule`,
       icon: Calendar,
     },
-    { label: "ゲスト管理", href: `/weddings/${weddingId}/guests`, icon: Users },
+    {
+      label: "ゲスト管理",
+      href: `/weddings/${weddingId}/guests`,
+      icon: Users,
+    },
     { label: "席次表", href: `/weddings/${weddingId}/seating`, icon: Grid3X3 },
     { label: "引き出物", href: `/weddings/${weddingId}/gifts`, icon: Gift },
     { label: "音楽", href: `/weddings/${weddingId}/playlist`, icon: Music },

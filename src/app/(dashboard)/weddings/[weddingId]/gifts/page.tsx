@@ -81,7 +81,7 @@ export default async function GiftsPage({ params }: PageProps) {
       <div>
         <h1 className="text-2xl font-bold">引き出物管理</h1>
         <p className="mt-1 text-muted-foreground">
-          ギフトの登録、個別・グループ割り当て、予算の確認を行います。
+          ギフトの登録、個別・グループ割当、予算の確認を行います。
         </p>
       </div>
 
@@ -98,10 +98,7 @@ export default async function GiftsPage({ params }: PageProps) {
         </TabsContent>
 
         <TabsContent value="guests">
-          <GiftGuestAssignmentView
-            guests={guestTargets}
-            gifts={giftOptions}
-          />
+          <GiftGuestAssignmentView guests={guestTargets} gifts={giftOptions} />
         </TabsContent>
 
         <TabsContent value="groups">

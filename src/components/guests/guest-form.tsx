@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/select";
 import {
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { createGuest, updateGuest } from "@/actions/guest-actions";
@@ -27,15 +27,15 @@ import { createGuest, updateGuest } from "@/actions/guest-actions";
 const RELATIONSHIP_OPTIONS = [
   "友人",
   "親族",
+  "兄弟姉妹",
+  "会社関係",
   "上司",
   "同僚",
-  "先輩",
-  "後輩",
   "恩師",
-  "取引先",
-  "近所",
+  "主賓",
+  "受付",
   "その他",
-];
+] as const;
 
 type Guest = {
   id: string;
@@ -64,18 +64,15 @@ type GuestFormProps = {
 };
 
 export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
-  const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const isEditing = !!guest;
+  const [isPending, startTransition] = useTransition();
+  const isEditing = Boolean(guest);
 
   async function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      let result;
-      if (isEditing) {
-        result = await updateGuest(guest.id, formData);
-      } else {
-        result = await createGuest(weddingId, formData);
-      }
+      const result = isEditing
+        ? await updateGuest(guest!.id, formData)
+        : await createGuest(weddingId, formData);
 
       if (result.success) {
         onClose();
@@ -92,13 +89,12 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
         </DialogTitle>
         <DialogDescription>
           {isEditing
-            ? "ゲストの情報を更新します。"
+            ? "ゲスト情報を更新します。"
             : "新しいゲストの情報を入力してください。"}
         </DialogDescription>
       </DialogHeader>
 
       <form action={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-muted-foreground">
             基本情報
@@ -130,7 +126,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="familyNameKana">姓（カナ）</Label>
+              <Label htmlFor="familyNameKana">姓カナ</Label>
               <Input
                 id="familyNameKana"
                 name="familyNameKana"
@@ -138,7 +134,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="givenNameKana">名（カナ）</Label>
+              <Label htmlFor="givenNameKana">名カナ</Label>
               <Input
                 id="givenNameKana"
                 name="givenNameKana"
@@ -150,19 +146,16 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="relationship">
-                続柄 <span className="text-destructive">*</span>
+                関係 <span className="text-destructive">*</span>
               </Label>
-              <Select
-                name="relationship"
-                defaultValue={guest?.relationship ?? ""}
-              >
+              <Select name="relationship" defaultValue={guest?.relationship ?? ""}>
                 <SelectTrigger id="relationship">
                   <SelectValue placeholder="選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  {RELATIONSHIP_OPTIONS.map((opt) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
+                  {RELATIONSHIP_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -170,7 +163,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
             </div>
             <div className="space-y-2">
               <Label>
-                新郎/新婦側 <span className="text-destructive">*</span>
+                新郎側・新婦側 <span className="text-destructive">*</span>
               </Label>
               <div className="flex items-center gap-4 pt-2">
                 <label className="flex items-center gap-2 text-sm">
@@ -199,7 +192,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="attendanceStatus">出席状況</Label>
+            <Label htmlFor="attendanceStatus">出欠</Label>
             <Select
               name="attendanceStatus"
               defaultValue={guest?.attendanceStatus ?? "pending"}
@@ -208,7 +201,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">未回答</SelectItem>
+                <SelectItem value="pending">未確認</SelectItem>
                 <SelectItem value="attending">出席</SelectItem>
                 <SelectItem value="declined">欠席</SelectItem>
               </SelectContent>
@@ -218,10 +211,9 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
 
         <Separator />
 
-        {/* Contact Info */}
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-muted-foreground">
-            連絡先情報
+            連絡先
           </h4>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -264,10 +256,9 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
 
         <Separator />
 
-        {/* Dietary & Other */}
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-muted-foreground">
-            食事・その他
+            食事・補足
           </h4>
           <div className="space-y-2">
             <Label htmlFor="dietaryRestrictions">食事制限</Label>
@@ -275,7 +266,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
               id="dietaryRestrictions"
               name="dietaryRestrictions"
               defaultValue={guest?.dietaryRestrictions ?? ""}
-              placeholder="ベジタリアン、ハラールなど"
+              placeholder="ベジタリアン、ハラール など"
             />
           </div>
           <div className="space-y-2">
@@ -284,11 +275,11 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
               id="allergies"
               name="allergies"
               defaultValue={guest?.allergies ?? ""}
-              placeholder="えび、かに、小麦など"
+              placeholder="えび、かに、卵 など"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="note">備考</Label>
+            <Label htmlFor="note">メモ</Label>
             <Textarea
               id="note"
               name="note"
@@ -315,7 +306,7 @@ export function GuestForm({ weddingId, guest, onClose }: GuestFormProps) {
                 defaultChecked={guest?.isChild ?? false}
               />
               <Label htmlFor="isChild" className="cursor-pointer">
-                子供
+                お子様
               </Label>
             </div>
           </div>

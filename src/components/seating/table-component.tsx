@@ -1,24 +1,19 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Plus, X, MoreHorizontal, Trash2, Edit } from "lucide-react";
+import { Edit, Plus, Trash2, X } from "lucide-react";
 import {
   assignGuestToSeat,
-  removeGuestFromSeat,
   deleteTable,
-  updateTable,
+  removeGuestFromSeat,
 } from "@/actions/seating-actions";
 import type { SeatingTable } from "@/actions/seating-actions";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AddTableDialog } from "./add-table-dialog";
 
 type UnassignedGuest = {
   id: string;
@@ -68,16 +63,24 @@ export function TableComponent({
   unassignedGuests,
   onDataChange,
 }: TableComponentProps) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [assigningSeatIndex, setAssigningSeatIndex] = useState<number | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(table.name);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const isRound = table.shape === "round";
   const assignedCount = table.seatAssignments.length;
   const seats = Array.from({ length: table.capacity }, (_, index) => index);
+  const minimumCapacity = useMemo(
+    () =>
+      Math.max(
+        2,
+        ...table.seatAssignments.map((assignment) => assignment.seatIndex + 1)
+      ),
+    [table.seatAssignments]
+  );
 
   const getAssignment = useCallback(
     (seatIndex: number) =>
@@ -85,43 +88,40 @@ export function TableComponent({
     [table.seatAssignments]
   );
 
-  const handleAssignGuest = async (guestId: string, seatIndex: number) => {
+  async function handleAssignGuest(guestId: string, seatIndex: number) {
     await assignGuestToSeat(guestId, table.id, seatIndex);
     setAssigningSeatIndex(null);
     setSearchQuery("");
     onDataChange();
-  };
+  }
 
-  const handleRemoveGuest = async (guestId: string) => {
+  async function handleRemoveGuest(guestId: string) {
     await removeGuestFromSeat(guestId);
     onDataChange();
-  };
+  }
 
-  const handleDeleteTable = async () => {
-    if (!confirm("このテーブルを削除しますか？席の割り当ても解除されます。")) {
+  function handleDeleteTable() {
+    if (isDeleting) return;
+
+    if (
+      !confirm(
+        `「${table.name}」を削除しますか？割り当て済みの席もまとめて削除されます。`
+      )
+    ) {
       return;
     }
-    await deleteTable(table.id);
-    onDataChange();
-  };
 
-  const handleSaveName = async () => {
-    if (editName.trim() && editName !== table.name) {
-      await updateTable(table.id, { name: editName.trim() });
+    startDeleteTransition(async () => {
+      await deleteTable(table.id);
       onDataChange();
-    }
-    setIsEditing(false);
-  };
+    });
+  }
 
   const filteredGuests = unassignedGuests.filter((guest) => {
     if (!searchQuery) return true;
     const fullName = `${guest.familyName}${guest.givenName}`;
     return fullName.includes(searchQuery);
   });
-
-  const abbreviateName = (familyName: string, givenName: string) => {
-    return `${familyName} ${givenName.charAt(0)}.`;
-  };
 
   const getSeatPosition = (index: number, total: number) => {
     if (isRound) {
@@ -192,10 +192,7 @@ export function TableComponent({
                     )}
                     title={`${assignment.guest.familyName} ${assignment.guest.givenName} (${assignment.guest.relationship})`}
                   >
-                    {abbreviateName(
-                      assignment.guest.familyName,
-                      assignment.guest.givenName
-                    )}
+                    {assignment.guest.familyName} {assignment.guest.givenName}
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
@@ -234,58 +231,41 @@ export function TableComponent({
           isRound ? "rounded-full" : "rounded-lg"
         )}
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="absolute right-1 top-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              data-no-table-drag
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => setIsEditing(true)}>
-              <Edit className="mr-2 h-3.5 w-3.5" />
-              名前を編集
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleDeleteTable}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-3.5 w-3.5" />
-              削除
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {isEditing ? (
-          <Input
-            value={editName}
-            onChange={(event) => setEditName(event.target.value)}
-            onBlur={handleSaveName}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") handleSaveName();
-              if (event.key === "Escape") {
-                setEditName(table.name);
-                setIsEditing(false);
-              }
-            }}
-            className="h-6 w-16 px-1 text-center text-xs"
-            autoFocus
+        <div className="absolute right-1.5 top-1.5 z-10 flex gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full bg-white/90 text-gray-500 shadow-sm hover:bg-white"
+            onClick={() => setShowEditDialog(true)}
             data-no-table-drag
-          />
-        ) : (
-          <span className="text-sm font-semibold text-gray-700">
-            {table.name}
-          </span>
-        )}
+            title="テーブルを編集"
+            disabled={isDeleting}
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 rounded-full bg-white/90 text-destructive shadow-sm hover:bg-white hover:text-destructive"
+            onClick={handleDeleteTable}
+            data-no-table-drag
+            title="テーブルを削除"
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        <span className="text-sm font-semibold text-gray-700">{table.name}</span>
 
         <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
           {assignedCount}/{table.capacity}
         </Badge>
       </div>
 
-      {assigningSeatIndex !== null && (
+      {assigningSeatIndex !== null ? (
         <div
           className="absolute z-50 w-48 rounded-lg border bg-white p-2 shadow-lg"
           style={{
@@ -320,7 +300,7 @@ export function TableComponent({
           <div className="max-h-32 space-y-0.5 overflow-y-auto">
             {filteredGuests.length === 0 ? (
               <p className="py-2 text-center text-xs text-gray-400">
-                候補のゲストがいません
+                条件に一致するゲストがいません
               </p>
             ) : (
               filteredGuests.map((guest) => (
@@ -334,14 +314,14 @@ export function TableComponent({
                 >
                   <span
                     className={cn(
-                      "h-1.5 w-1.5 flex-shrink-0 rounded-full",
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
                       guest.side === "bride" ? "bg-pink-400" : "bg-blue-400"
                     )}
                   />
                   <span className="truncate">
                     {guest.familyName} {guest.givenName}
                   </span>
-                  <span className="flex-shrink-0 text-[10px] text-gray-400">
+                  <span className="shrink-0 text-[10px] text-gray-400">
                     {guest.relationship}
                   </span>
                 </button>
@@ -349,7 +329,17 @@ export function TableComponent({
             )}
           </div>
         </div>
-      )}
+      ) : null}
+
+      <AddTableDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        weddingId={table.weddingId}
+        existingTableCount={0}
+        onDataChange={onDataChange}
+        table={table}
+        minCapacity={minimumCapacity}
+      />
     </div>
   );
 }

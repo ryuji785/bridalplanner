@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("メールアドレスとパスワードを入力してください");
+          throw new Error("メールアドレスとパスワードを入力してください。");
         }
 
         const user = await prisma.user.findUnique({
@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          throw new Error("メールアドレスまたはパスワードが正しくありません");
+          throw new Error("メールアドレスまたはパスワードが正しくありません。");
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isPasswordValid) {
-          throw new Error("メールアドレスまたはパスワードが正しくありません");
+          throw new Error("メールアドレスまたはパスワードが正しくありません。");
         }
 
         return {

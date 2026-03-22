@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { createDefaultTimeline } from "@/actions/timeline-actions";
 import { TimelineEntryForm } from "@/components/day-of/timeline-entry-form";
 
@@ -26,9 +26,7 @@ export function TimelinePageHeader({
   function handleCreateTemplate() {
     if (
       hasEntries &&
-      !confirm(
-        "既存のタイムラインにテンプレートを追加します。重複して追加される可能性がありますが、続行しますか？"
-      )
+      !confirm("既存のタイムラインにテンプレートを追加しますか？")
     ) {
       return;
     }
@@ -44,10 +42,8 @@ export function TimelinePageHeader({
         <div>
           <h1 className="text-2xl font-bold">当日タイムライン</h1>
           <div className="mt-1 flex items-center gap-2">
-            <Badge variant="secondary">{entryCount}件</Badge>
-            {totalDuration ? (
-              <Badge variant="outline">{totalDuration}</Badge>
-            ) : null}
+            <Badge variant="secondary">{entryCount} 件</Badge>
+            {totalDuration ? <Badge variant="outline">{totalDuration}</Badge> : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

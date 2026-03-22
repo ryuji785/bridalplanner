@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { Edit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +14,10 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -25,10 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  assignGiftToGroup,
   createGiftGroup,
   deleteGiftGroup,
-  assignGiftToGroup,
   removeGiftAssignment,
+  updateGiftGroup,
 } from "@/actions/gift-actions";
 import { formatYen } from "@/lib/utils";
 
@@ -67,26 +70,69 @@ export function GiftGroupAssignmentView({
   gifts,
   weddingId,
 }: Props) {
+  const [editingGroup, setEditingGroup] = useState<GiftGroup | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [groupError, setGroupError] = useState<string | null>(null);
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [assignFormOpen, setAssignFormOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [selectedGiftId, setSelectedGiftId] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
-  const groupFormRef = useRef<HTMLFormElement>(null);
 
-  function handleCreateGroup(formData: FormData) {
+  useEffect(() => {
+    if (!groupFormOpen) {
+      setGroupName("");
+      setGroupError(null);
+      return;
+    }
+
+    setGroupName(editingGroup?.name ?? "");
+    setGroupError(null);
+  }, [editingGroup, groupFormOpen]);
+
+  function openCreateGroupDialog() {
+    setEditingGroup(null);
+    setGroupFormOpen(true);
+  }
+
+  function openEditGroupDialog(group: GiftGroup) {
+    setEditingGroup(group);
+    setGroupFormOpen(true);
+  }
+
+  function handleSaveGroup() {
+    const trimmedName = groupName.trim();
+    if (!trimmedName) {
+      setGroupError("グループ名を入力してください。");
+      return;
+    }
+
+    setGroupError(null);
+
+    const formData = new FormData();
+    formData.set("name", trimmedName);
+
     startTransition(async () => {
-      const result = await createGiftGroup(weddingId, formData);
+      const result = editingGroup
+        ? await updateGiftGroup(editingGroup.id, formData)
+        : await createGiftGroup(weddingId, formData);
+
       if (result.success) {
         setGroupFormOpen(false);
-        groupFormRef.current?.reset();
+        setEditingGroup(null);
+        setGroupName("");
+      } else {
+        setGroupError(result.errors.name?.[0] ?? "グループを保存できませんでした。");
       }
     });
   }
 
   function handleDeleteGroup(groupId: string) {
-    if (!confirm("このグループを削除しますか？割り当ても解除されます。")) return;
+    if (!confirm("このグループを削除しますか？関連する割当も削除されます。")) {
+      return;
+    }
+
     startTransition(async () => {
       await deleteGiftGroup(groupId);
     });
@@ -104,7 +150,7 @@ export function GiftGroupAssignmentView({
   }
 
   function handleRemoveAssignment(assignmentId: string) {
-    if (!confirm("この割り当てを削除しますか？")) return;
+    if (!confirm("この割当を削除しますか？")) return;
     startTransition(async () => {
       await removeGiftAssignment(assignmentId);
     });
@@ -120,7 +166,10 @@ export function GiftGroupAssignmentView({
   return (
     <>
       <div className="mb-4 flex justify-end">
-        <Button onClick={() => setGroupFormOpen(true)}>グループを追加</Button>
+        <Button onClick={openCreateGroupDialog} className="gap-1.5">
+          <Plus className="h-4 w-4" />
+          グループを追加
+        </Button>
       </div>
 
       {groups.length === 0 ? (
@@ -146,7 +195,7 @@ export function GiftGroupAssignmentView({
                     <div>
                       <CardTitle className="text-base">{group.name}</CardTitle>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        割当 {group.assignments.length}件
+                        割当 {group.assignments.length} 件
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -154,10 +203,19 @@ export function GiftGroupAssignmentView({
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => openEditGroupDialog(group)}
+                        className="gap-1.5"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        編集
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => openAssignForm(group.id)}
                         disabled={gifts.length === 0}
                       >
-                        ギフトを追加
+                        ギフト追加
                       </Button>
                       <Button
                         variant="ghost"
@@ -188,7 +246,7 @@ export function GiftGroupAssignmentView({
                               {assignment.gift.name}
                             </span>
                             <Badge variant="outline" className="text-xs">
-                              ×{assignment.quantity}
+                              x{assignment.quantity}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2">
@@ -223,14 +281,25 @@ export function GiftGroupAssignmentView({
       <Dialog open={groupFormOpen} onOpenChange={setGroupFormOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>グループを追加</DialogTitle>
+            <DialogTitle>
+              {editingGroup ? "グループを編集" : "グループを追加"}
+            </DialogTitle>
+            <DialogDescription>
+              グループ名を設定すると、複数の割当をまとめて管理できます。
+            </DialogDescription>
           </DialogHeader>
-          <form ref={groupFormRef} action={handleCreateGroup} className="space-y-4">
+          <div className="space-y-4">
             <Input
-              name="name"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
               placeholder="例: 親族 / 主賓 / 会社関係"
-              required
+              disabled={isPending}
             />
+            {groupError ? (
+              <p className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {groupError}
+              </p>
+            ) : null}
             <DialogFooter>
               <Button
                 type="button"
@@ -239,11 +308,15 @@ export function GiftGroupAssignmentView({
               >
                 キャンセル
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "追加中..." : "追加"}
+              <Button type="button" disabled={isPending} onClick={handleSaveGroup}>
+                {isPending
+                  ? "保存中..."
+                  : editingGroup
+                    ? "更新する"
+                    : "追加する"}
               </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -294,7 +367,7 @@ export function GiftGroupAssignmentView({
                   onClick={handleAssignGift}
                   disabled={isPending || !selectedGiftId}
                 >
-                  {isPending ? "保存中..." : "割り当て"}
+                  {isPending ? "保存中..." : "割り当てる"}
                 </Button>
               </DialogFooter>
             </div>

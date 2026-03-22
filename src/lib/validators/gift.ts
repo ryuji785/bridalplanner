@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const giftCreateSchema = z.object({
-  name: z.string().min(1, "ギフト名を入力してください"),
+  name: z.string().trim().min(1, "ギフト名を入力してください"),
   category: z
     .enum(["main", "sweets", "petite"])
     .optional()
@@ -17,8 +17,10 @@ export const giftCreateSchema = z.object({
 export const giftUpdateSchema = giftCreateSchema.partial();
 
 export const giftGroupCreateSchema = z.object({
-  name: z.string().min(1, "グループ名を入力してください"),
+  name: z.string().trim().min(1, "グループ名を入力してください"),
 });
+
+export const giftGroupUpdateSchema = giftGroupCreateSchema;
 
 export const giftAssignmentSchema = z
   .object({
@@ -34,7 +36,7 @@ export const giftAssignmentSchema = z
   .refine(
     (data) => (Boolean(data.guestId) ? 1 : 0) + (Boolean(data.groupId) ? 1 : 0) === 1,
     {
-      message: "割り当て先を選択してください",
+      message: "割当先を1つ選択してください",
       path: ["giftId"],
     }
   );
@@ -42,4 +44,5 @@ export const giftAssignmentSchema = z
 export type GiftCreateInput = z.infer<typeof giftCreateSchema>;
 export type GiftUpdateInput = z.infer<typeof giftUpdateSchema>;
 export type GiftGroupCreateInput = z.infer<typeof giftGroupCreateSchema>;
+export type GiftGroupUpdateInput = z.infer<typeof giftGroupUpdateSchema>;
 export type GiftAssignmentInput = z.infer<typeof giftAssignmentSchema>;

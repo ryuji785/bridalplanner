@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
+import { isMissingRecordError } from "@/lib/action-errors";
 import {
   timelineEntryCreateSchema,
   timelineEntryUpdateSchema,
@@ -11,7 +12,7 @@ import {
 const DEFAULT_TIMELINE_ENTRIES = [
   { startTime: "10:00", title: "新郎新婦お支度・準備", category: "preparation" },
   { startTime: "11:00", title: "ヘアメイク・最終確認", category: "preparation" },
-  { startTime: "12:00", title: "親族紹介", category: "preparation" },
+  { startTime: "12:00", title: "親族集合", category: "preparation" },
   { startTime: "12:30", title: "挙式リハーサル", category: "ceremony" },
   { startTime: "13:00", title: "挙式（チャペル）", category: "ceremony" },
   { startTime: "13:30", title: "フラワーシャワー・集合写真", category: "ceremony" },
@@ -26,8 +27,8 @@ const DEFAULT_TIMELINE_ENTRIES = [
   { startTime: "16:15", title: "両親への手紙", category: "reception" },
   { startTime: "16:30", title: "花束贈呈", category: "reception" },
   { startTime: "16:40", title: "謝辞", category: "reception" },
-  { startTime: "16:50", title: "新郎新婦退場", category: "reception" },
-  { startTime: "17:00", title: "お見送り", category: "reception" },
+  { startTime: "16:50", title: "新郎新婦送賓", category: "reception" },
+  { startTime: "17:00", title: "お開き", category: "reception" },
 ] as const;
 
 function revalidateTimelinePaths(weddingId: string) {
@@ -55,7 +56,7 @@ export async function createTimelineEntry(
     _max: { sortOrder: true },
   });
 
-  const raw = {
+  const parsed = timelineEntryCreateSchema.safeParse({
     startTime: formData.get("startTime") as string,
     endTime: (formData.get("endTime") as string) || undefined,
     title: formData.get("title") as string,
@@ -63,9 +64,7 @@ export async function createTimelineEntry(
     location: (formData.get("location") as string) || undefined,
     category: (formData.get("category") as string) || undefined,
     sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
-  };
-
-  const parsed = timelineEntryCreateSchema.safeParse(raw);
+  });
 
   if (!parsed.success) {
     return {
@@ -95,9 +94,16 @@ export async function updateTimelineEntry(
   entryId: string,
   formData: FormData
 ) {
-  const entry = await prisma.dayTimelineEntry.findUniqueOrThrow({
+  const entry = await prisma.dayTimelineEntry.findUnique({
     where: { id: entryId },
   });
+
+  if (!entry) {
+    return {
+      success: false as const,
+      error: "タイムライン項目が見つかりません。",
+    };
+  }
 
   await requireWeddingAccess(entry.weddingId);
 
@@ -124,31 +130,52 @@ export async function updateTimelineEntry(
     }
   }
 
-  await prisma.dayTimelineEntry.update({
-    where: { id: entryId },
-    data: {
-      ...data,
-      endTime: data.endTime ?? null,
-      description: data.description ?? null,
-      location: data.location ?? null,
-      category: data.category ?? null,
-    },
-  });
+  try {
+    await prisma.dayTimelineEntry.update({
+      where: { id: entryId },
+      data: {
+        ...data,
+        endTime: data.endTime ?? null,
+        description: data.description ?? null,
+        location: data.location ?? null,
+        category: data.category ?? null,
+      },
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        error: "タイムライン項目が見つかりません。",
+      };
+    }
+
+    throw error;
+  }
 
   revalidateTimelinePaths(entry.weddingId);
   return { success: true as const };
 }
 
 export async function deleteTimelineEntry(entryId: string) {
-  const entry = await prisma.dayTimelineEntry.findUniqueOrThrow({
+  const entry = await prisma.dayTimelineEntry.findUnique({
     where: { id: entryId },
   });
+
+  if (!entry) {
+    return { success: true as const };
+  }
 
   await requireWeddingAccess(entry.weddingId);
 
-  await prisma.dayTimelineEntry.delete({
-    where: { id: entryId },
-  });
+  try {
+    await prisma.dayTimelineEntry.delete({
+      where: { id: entryId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidateTimelinePaths(entry.weddingId);
   return { success: true as const };

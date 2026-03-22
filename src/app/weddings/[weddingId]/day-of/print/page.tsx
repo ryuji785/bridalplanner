@@ -1,7 +1,7 @@
+import { getTimelineEntries } from "@/actions/timeline-actions";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
-import { getTimelineEntries } from "@/actions/timeline-actions";
 import { TimelinePrintActions } from "@/components/day-of/timeline-print-actions";
 
 type PageProps = {

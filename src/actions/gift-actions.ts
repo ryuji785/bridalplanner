@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
+import { isMissingRecordError } from "@/lib/action-errors";
 import {
   giftCreateSchema,
   giftUpdateSchema,
   giftGroupCreateSchema,
+  giftGroupUpdateSchema,
   giftAssignmentSchema,
 } from "@/lib/validators/gift";
 
@@ -67,9 +69,16 @@ export async function createGift(weddingId: string, formData: FormData) {
 }
 
 export async function updateGift(giftId: string, formData: FormData) {
-  const gift = await prisma.gift.findUniqueOrThrow({
+  const gift = await prisma.gift.findUnique({
     where: { id: giftId },
   });
+
+  if (!gift) {
+    return {
+      success: false as const,
+      error: "ギフトが見つかりません。",
+    };
+  }
 
   await requireWeddingAccess(gift.weddingId);
 
@@ -100,30 +109,51 @@ export async function updateGift(giftId: string, formData: FormData) {
     }
   }
 
-  await prisma.gift.update({
-    where: { id: giftId },
-    data: {
-      ...data,
-      category: data.category ?? null,
-      supplier: data.supplier ?? null,
-      note: data.note ?? null,
-    },
-  });
+  try {
+    await prisma.gift.update({
+      where: { id: giftId },
+      data: {
+        ...data,
+        category: data.category ?? null,
+        supplier: data.supplier ?? null,
+        note: data.note ?? null,
+      },
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        error: "ギフトが見つかりません。",
+      };
+    }
+
+    throw error;
+  }
 
   revalidateGiftPath(gift.weddingId);
   return { success: true as const };
 }
 
 export async function deleteGift(giftId: string) {
-  const gift = await prisma.gift.findUniqueOrThrow({
+  const gift = await prisma.gift.findUnique({
     where: { id: giftId },
   });
+
+  if (!gift) {
+    return { success: true as const };
+  }
 
   await requireWeddingAccess(gift.weddingId);
 
-  await prisma.gift.delete({
-    where: { id: giftId },
-  });
+  try {
+    await prisma.gift.delete({
+      where: { id: giftId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidateGiftPath(gift.weddingId);
   return { success: true as const };
@@ -171,10 +201,61 @@ export async function createGiftGroup(weddingId: string, formData: FormData) {
   return { success: true as const };
 }
 
-export async function deleteGiftGroup(groupId: string) {
-  const group = await prisma.giftGroup.findUniqueOrThrow({
+export async function updateGiftGroup(groupId: string, formData: FormData) {
+  const group = await prisma.giftGroup.findUnique({
     where: { id: groupId },
   });
+
+  if (!group) {
+    return {
+      success: false as const,
+      errors: { name: ["グループが見つかりません。"] },
+    };
+  }
+
+  await requireWeddingAccess(group.weddingId);
+
+  const parsed = giftGroupUpdateSchema.safeParse({
+    name: formData.get("name") as string,
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await prisma.giftGroup.update({
+      where: { id: groupId },
+      data: {
+        name: parsed.data.name,
+      },
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        errors: { name: ["グループが見つかりません。"] },
+      };
+    }
+
+    throw error;
+  }
+
+  revalidateGiftPath(group.weddingId);
+  return { success: true as const };
+}
+
+export async function deleteGiftGroup(groupId: string) {
+  const group = await prisma.giftGroup.findUnique({
+    where: { id: groupId },
+  });
+
+  if (!group) {
+    return { success: true as const };
+  }
 
   await requireWeddingAccess(group.weddingId);
 
@@ -182,9 +263,15 @@ export async function deleteGiftGroup(groupId: string) {
     where: { groupId },
   });
 
-  await prisma.giftGroup.delete({
-    where: { id: groupId },
-  });
+  try {
+    await prisma.giftGroup.delete({
+      where: { id: groupId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidateGiftPath(group.weddingId);
   return { success: true as const };
@@ -195,9 +282,16 @@ export async function assignGiftToGuest(
   guestId: string,
   quantity: number = 1
 ) {
-  const gift = await prisma.gift.findUniqueOrThrow({
+  const gift = await prisma.gift.findUnique({
     where: { id: giftId },
   });
+
+  if (!gift) {
+    return {
+      success: false as const,
+      errors: { giftId: ["ギフトが見つかりません。"] },
+    };
+  }
 
   await requireWeddingAccess(gift.weddingId);
 
@@ -209,7 +303,7 @@ export async function assignGiftToGuest(
   if (!guest) {
     return {
       success: false as const,
-      errors: { guestId: ["同じ結婚式のゲストを選択してください"] },
+      errors: { guestId: ["割り当て先のゲストを選択してください"] },
     };
   }
 
@@ -256,9 +350,16 @@ export async function assignGiftToGroup(
   groupId: string,
   quantity: number = 1
 ) {
-  const gift = await prisma.gift.findUniqueOrThrow({
+  const gift = await prisma.gift.findUnique({
     where: { id: giftId },
   });
+
+  if (!gift) {
+    return {
+      success: false as const,
+      errors: { giftId: ["ギフトが見つかりません。"] },
+    };
+  }
 
   await requireWeddingAccess(gift.weddingId);
 
@@ -270,7 +371,7 @@ export async function assignGiftToGroup(
   if (!group) {
     return {
       success: false as const,
-      errors: { groupId: ["同じ結婚式のグループを選択してください"] },
+      errors: { groupId: ["割り当て先のグループを選択してください"] },
     };
   }
 
@@ -313,16 +414,26 @@ export async function assignGiftToGroup(
 }
 
 export async function removeGiftAssignment(assignmentId: string) {
-  const assignment = await prisma.giftAssignment.findUniqueOrThrow({
+  const assignment = await prisma.giftAssignment.findUnique({
     where: { id: assignmentId },
     include: { gift: true },
   });
 
+  if (!assignment) {
+    return { success: true as const };
+  }
+
   await requireWeddingAccess(assignment.gift.weddingId);
 
-  await prisma.giftAssignment.delete({
-    where: { id: assignmentId },
-  });
+  try {
+    await prisma.giftAssignment.delete({
+      where: { id: assignmentId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidateGiftPath(assignment.gift.weddingId);
   return { success: true as const };

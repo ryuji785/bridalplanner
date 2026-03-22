@@ -11,7 +11,7 @@ export const songCreateSchema = z.object({
   title: z.string().min(1, "曲名を入力してください"),
   artist: z.string().min(1, "アーティスト名を入力してください"),
   durationSec: z
-    .number({ invalid_type_error: "再生時間を入力してください" })
+    .number({ invalid_type_error: "再生時間を正しく入力してください" })
     .int()
     .min(0)
     .optional(),

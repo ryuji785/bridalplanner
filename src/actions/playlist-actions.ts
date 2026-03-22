@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
+import { isMissingRecordError } from "@/lib/action-errors";
 import {
   sectionCreateSchema,
   songCreateSchema,
@@ -12,7 +13,7 @@ import {
 export async function getPlaylist(weddingId: string) {
   await requireWeddingAccess(weddingId);
 
-  const sections = await prisma.playlistSection.findMany({
+  return prisma.playlistSection.findMany({
     where: { weddingId },
     include: {
       songs: {
@@ -21,19 +22,15 @@ export async function getPlaylist(weddingId: string) {
     },
     orderBy: { sortOrder: "asc" },
   });
-
-  return sections;
 }
 
 export async function createSection(weddingId: string, formData: FormData) {
   await requireWeddingAccess(weddingId);
 
-  const raw = {
+  const parsed = sectionCreateSchema.safeParse({
     name: formData.get("name") as string,
     sortOrder: 0,
-  };
-
-  const parsed = sectionCreateSchema.safeParse(raw);
+  });
 
   if (!parsed.success) {
     return {
@@ -42,7 +39,6 @@ export async function createSection(weddingId: string, formData: FormData) {
     };
   }
 
-  // Set sortOrder to the end
   const maxSort = await prisma.playlistSection.aggregate({
     where: { weddingId },
     _max: { sortOrder: true },
@@ -61,73 +57,105 @@ export async function createSection(weddingId: string, formData: FormData) {
 }
 
 export async function updateSection(sectionId: string, formData: FormData) {
-  const section = await prisma.playlistSection.findUniqueOrThrow({
+  const section = await prisma.playlistSection.findUnique({
     where: { id: sectionId },
   });
 
+  if (!section) {
+    return {
+      success: false as const,
+      errors: { name: ["セクションが見つかりません。"] },
+    };
+  }
+
   await requireWeddingAccess(section.weddingId);
 
-  const name = formData.get("name") as string;
-
-  if (!name || name.trim() === "") {
+  const name = (formData.get("name") as string)?.trim();
+  if (!name) {
     return {
       success: false as const,
       errors: { name: ["セクション名を入力してください"] },
     };
   }
 
-  await prisma.playlistSection.update({
-    where: { id: sectionId },
-    data: { name },
-  });
+  try {
+    await prisma.playlistSection.update({
+      where: { id: sectionId },
+      data: { name },
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        errors: { name: ["セクションが見つかりません。"] },
+      };
+    }
+
+    throw error;
+  }
 
   revalidatePath(`/weddings/${section.weddingId}/playlist`);
   return { success: true as const };
 }
 
 export async function deleteSection(sectionId: string) {
-  const section = await prisma.playlistSection.findUniqueOrThrow({
+  const section = await prisma.playlistSection.findUnique({
     where: { id: sectionId },
   });
+
+  if (!section) {
+    return { success: true as const };
+  }
 
   await requireWeddingAccess(section.weddingId);
 
-  await prisma.playlistSection.delete({
-    where: { id: sectionId },
-  });
+  try {
+    await prisma.playlistSection.delete({
+      where: { id: sectionId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${section.weddingId}/playlist`);
   return { success: true as const };
 }
 
 export async function createSong(sectionId: string, formData: FormData) {
-  const section = await prisma.playlistSection.findUniqueOrThrow({
+  const section = await prisma.playlistSection.findUnique({
     where: { id: sectionId },
   });
 
+  if (!section) {
+    return {
+      success: false as const,
+      errors: { title: ["セクションが見つかりません。"] },
+    };
+  }
+
   await requireWeddingAccess(section.weddingId);
 
-  const durationRaw = formData.get("durationSec") as string;
+  const durationRaw = (formData.get("durationSec") as string) || "";
   let durationSec: number | undefined;
+
   if (durationRaw) {
-    // Support mm:ss format
     if (durationRaw.includes(":")) {
-      const [min, sec] = durationRaw.split(":").map(Number);
-      durationSec = min * 60 + (sec || 0);
+      const [minutes, seconds] = durationRaw.split(":").map(Number);
+      durationSec = minutes * 60 + (seconds || 0);
     } else {
       durationSec = Number(durationRaw);
     }
   }
 
-  const raw = {
+  const parsed = songCreateSchema.safeParse({
     title: formData.get("title") as string,
     artist: formData.get("artist") as string,
     durationSec,
     note: (formData.get("note") as string) || undefined,
     sortOrder: 0,
-  };
-
-  const parsed = songCreateSchema.safeParse(raw);
+  });
 
   if (!parsed.success) {
     return {
@@ -157,10 +185,17 @@ export async function createSong(sectionId: string, formData: FormData) {
 }
 
 export async function updateSong(songId: string, formData: FormData) {
-  const song = await prisma.song.findUniqueOrThrow({
+  const song = await prisma.song.findUnique({
     where: { id: songId },
     include: { section: true },
   });
+
+  if (!song) {
+    return {
+      success: false as const,
+      errors: { title: ["楽曲が見つかりません。"] },
+    };
+  }
 
   await requireWeddingAccess(song.section.weddingId);
 
@@ -171,11 +206,10 @@ export async function updateSong(songId: string, formData: FormData) {
     }
   }
 
-  // Handle duration format
   if (raw.durationSec && typeof raw.durationSec === "string") {
     if (raw.durationSec.includes(":")) {
-      const [min, sec] = (raw.durationSec as string).split(":").map(Number);
-      raw.durationSec = min * 60 + (sec || 0);
+      const [minutes, seconds] = raw.durationSec.split(":").map(Number);
+      raw.durationSec = minutes * 60 + (seconds || 0);
     } else {
       raw.durationSec = Number(raw.durationSec);
     }
@@ -197,28 +231,51 @@ export async function updateSong(songId: string, formData: FormData) {
     }
   }
 
-  if (data.note === "") data.note = null;
+  if (data.note === "") {
+    data.note = null;
+  }
 
-  await prisma.song.update({
-    where: { id: songId },
-    data,
-  });
+  try {
+    await prisma.song.update({
+      where: { id: songId },
+      data,
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        errors: { title: ["楽曲が見つかりません。"] },
+      };
+    }
+
+    throw error;
+  }
 
   revalidatePath(`/weddings/${song.section.weddingId}/playlist`);
   return { success: true as const };
 }
 
 export async function deleteSong(songId: string) {
-  const song = await prisma.song.findUniqueOrThrow({
+  const song = await prisma.song.findUnique({
     where: { id: songId },
     include: { section: true },
   });
 
+  if (!song) {
+    return { success: true as const };
+  }
+
   await requireWeddingAccess(song.section.weddingId);
 
-  await prisma.song.delete({
-    where: { id: songId },
-  });
+  try {
+    await prisma.song.delete({
+      where: { id: songId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${song.section.weddingId}/playlist`);
   return { success: true as const };
@@ -231,18 +288,25 @@ export async function createDefaultSections(weddingId: string) {
     { name: "入場", sortOrder: 0 },
     { name: "乾杯", sortOrder: 1 },
     { name: "ケーキ入刀", sortOrder: 2 },
-    { name: "お色直し入場", sortOrder: 3 },
-    { name: "お色直し退場", sortOrder: 4 },
+    { name: "お色直し中座", sortOrder: 3 },
+    { name: "お色直し再入場", sortOrder: 4 },
     { name: "テーブルラウンド", sortOrder: 5 },
     { name: "両親への手紙", sortOrder: 6 },
-    { name: "退場", sortOrder: 7 },
-    { name: "お見送り", sortOrder: 8 },
+    { name: "送賓", sortOrder: 7 },
+    { name: "お開き", sortOrder: 8 },
     { name: "歓談BGM", sortOrder: 9 },
   ];
 
+  const maxSort = await prisma.playlistSection.aggregate({
+    where: { weddingId },
+    _max: { sortOrder: true },
+  });
+  const baseSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
+
   await prisma.playlistSection.createMany({
-    data: defaultSections.map((section) => ({
-      ...section,
+    data: defaultSections.map((section, index) => ({
+      name: section.name,
+      sortOrder: baseSortOrder + index,
       weddingId,
     })),
   });

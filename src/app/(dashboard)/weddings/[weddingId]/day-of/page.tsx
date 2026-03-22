@@ -17,19 +17,19 @@ function formatDuration(entries: Awaited<ReturnType<typeof getTimelineEntries>>)
 
   const first = entries[0];
   const last = entries[entries.length - 1];
-  const diffMin = Math.max(
+  const diffMinutes = Math.max(
     0,
     toMinutes(last.endTime ?? last.startTime) - toMinutes(first.startTime)
   );
 
-  const hours = Math.floor(diffMin / 60);
-  const minutes = diffMin % 60;
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
 
   if (hours === 0) {
     return `${minutes}分`;
   }
 
-  return `${hours}時間${minutes > 0 ? `${minutes}分` : ""}`;
+  return `${hours}時間${minutes > 0 ? ` ${minutes}分` : ""}`;
 }
 
 export default async function DayOfPage({ params }: PageProps) {

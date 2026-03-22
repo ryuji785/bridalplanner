@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -15,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,9 +22,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setRegistered(params.get("registered") === "true");
+  }, []);
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setIsLoading(true);
     setError("");
 
@@ -51,18 +58,23 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">ログイン</CardTitle>
+        <CardTitle className="text-center text-2xl">ログイン</CardTitle>
         <CardDescription className="text-center">
           メールアドレスとパスワードでログイン
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
         <CardContent className="space-y-4">
-          {error && (
+          {registered ? (
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+              アカウントを登録しました。ログインしてください。
+            </div>
+          ) : null}
+          {error ? (
             <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
               {error}
             </div>
-          )}
+          ) : null}
           <div className="space-y-2">
             <Label htmlFor="email">メールアドレス</Label>
             <Input
@@ -70,7 +82,7 @@ export default function LoginPage() {
               type="email"
               placeholder="mail@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               required
               disabled={isLoading}
             />
@@ -81,7 +93,7 @@ export default function LoginPage() {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               required
               disabled={isLoading}
             />

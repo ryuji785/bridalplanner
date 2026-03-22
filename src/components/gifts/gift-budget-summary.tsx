@@ -17,7 +17,7 @@ type BudgetSummary = {
 
 const categoryLabels: Record<string, string> = {
   main: "メイン記念品",
-  sweets: "引き菓子",
+  sweets: "引菓子",
   petite: "プチギフト",
 };
 
@@ -51,7 +51,7 @@ export function GiftBudgetSummary({ summary }: Props) {
               {formatYen(summary.averagePerTarget)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {summary.assignedTargetCount}対象に割り当て
+              {summary.assignedTargetCount}件に割り当て
             </p>
           </CardContent>
         </Card>
@@ -63,7 +63,7 @@ export function GiftBudgetSummary({ summary }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{summary.totalAssignments}個</p>
+            <p className="text-2xl font-bold">{summary.totalAssignments}件</p>
           </CardContent>
         </Card>
 
@@ -81,7 +81,7 @@ export function GiftBudgetSummary({ summary }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">カテゴリ別集計</CardTitle>
+          <CardTitle className="text-base">カテゴリ別内訳</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -95,7 +95,7 @@ export function GiftBudgetSummary({ summary }: Props) {
                     {categoryLabels[category] ?? category}
                   </span>
                   <span className="ml-2 text-sm text-muted-foreground">
-                    ({data.count}個)
+                    ({data.count}件)
                   </span>
                 </div>
                 <span className="font-mono font-medium">

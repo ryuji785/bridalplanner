@@ -76,7 +76,7 @@ function AttendanceBadge({ status }: { status: string }) {
 
   return (
     <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">
-      未回答
+      未確認
     </Badge>
   );
 }
@@ -119,7 +119,7 @@ export function GiftGuestAssignmentView({ guests, gifts }: Props) {
   }
 
   function handleRemove(assignmentId: string) {
-    if (!confirm("この割り当てを削除しますか？")) return;
+    if (!confirm("この割当を削除しますか？")) return;
     startTransition(async () => {
       await removeGiftAssignment(assignmentId);
     });
@@ -132,7 +132,7 @@ export function GiftGuestAssignmentView({ guests, gifts }: Props) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="p-3 text-left text-sm font-medium">ゲスト</th>
-              <th className="p-3 text-left text-sm font-medium">状態</th>
+              <th className="p-3 text-left text-sm font-medium">属性</th>
               <th className="p-3 text-left text-sm font-medium">割当内容</th>
               <th className="p-3 text-right text-sm font-medium">操作</th>
             </tr>
@@ -158,7 +158,7 @@ export function GiftGuestAssignmentView({ guests, gifts }: Props) {
                 </td>
                 <td className="p-3">
                   {guest.assignments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">未割り当て</p>
+                    <p className="text-sm text-muted-foreground">未割当</p>
                   ) : (
                     <div className="space-y-2">
                       {guest.assignments.map((assignment) => (
@@ -167,7 +167,7 @@ export function GiftGuestAssignmentView({ guests, gifts }: Props) {
                           className="flex flex-wrap items-center gap-2"
                         >
                           <Badge variant="outline">
-                            {assignment.gift.name} ×{assignment.quantity}
+                            {assignment.gift.name} x{assignment.quantity}
                           </Badge>
                           <span className="text-sm text-muted-foreground">
                             {formatYen(
@@ -249,7 +249,7 @@ export function GiftGuestAssignmentView({ guests, gifts }: Props) {
                   onClick={handleAssign}
                   disabled={isPending || !selectedGiftId}
                 >
-                  {isPending ? "保存中..." : "割り当て"}
+                  {isPending ? "保存中..." : "割り当てる"}
                 </Button>
               </DialogFooter>
             </div>

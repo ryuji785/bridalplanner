@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,14 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search } from "lucide-react";
 
 export function GuestFilters() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
 
   function updateParams(key: string, value: string) {
@@ -28,13 +27,14 @@ export function GuestFilters() {
     } else {
       params.delete(key);
     }
+
     startTransition(() => {
       router.replace(`${pathname}?${params.toString()}`);
     });
   }
 
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSearchSubmit(event: React.FormEvent) {
+    event.preventDefault();
     updateParams("search", search);
   }
 
@@ -45,7 +45,7 @@ export function GuestFilters() {
         <Input
           placeholder="名前で検索..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           className="pl-9"
         />
       </form>
@@ -55,10 +55,10 @@ export function GuestFilters() {
         onValueChange={(value) => updateParams("side", value)}
       >
         <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="全員" />
+          <SelectValue placeholder="全て" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全員</SelectItem>
+          <SelectItem value="all">全て</SelectItem>
           <SelectItem value="bride">新婦側</SelectItem>
           <SelectItem value="groom">新郎側</SelectItem>
         </SelectContent>
@@ -69,19 +69,19 @@ export function GuestFilters() {
         onValueChange={(value) => updateParams("status", value)}
       >
         <SelectTrigger className="w-full sm:w-[160px]">
-          <SelectValue placeholder="全員" />
+          <SelectValue placeholder="全て" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">全員</SelectItem>
+          <SelectItem value="all">全て</SelectItem>
           <SelectItem value="attending">出席</SelectItem>
           <SelectItem value="declined">欠席</SelectItem>
-          <SelectItem value="pending">未回答</SelectItem>
+          <SelectItem value="pending">未確認</SelectItem>
         </SelectContent>
       </Select>
 
       {(searchParams.get("side") ||
         searchParams.get("status") ||
-        searchParams.get("search")) && (
+        searchParams.get("search")) ? (
         <Button
           variant="ghost"
           size="sm"
@@ -95,7 +95,7 @@ export function GuestFilters() {
         >
           クリア
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

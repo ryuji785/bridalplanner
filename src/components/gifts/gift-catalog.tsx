@@ -18,7 +18,7 @@ type Gift = {
 
 const categoryLabels: Record<string, string> = {
   main: "メイン記念品",
-  sweets: "引き菓子",
+  sweets: "引菓子",
   petite: "プチギフト",
 };
 

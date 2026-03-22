@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
+import { isMissingRecordError } from "@/lib/action-errors";
 import {
   milestoneSchema,
   updateMilestoneSchema,
@@ -43,9 +44,13 @@ export async function createMilestone(weddingId: string, data: unknown) {
 export async function updateMilestone(milestoneId: string, data: unknown) {
   const parsed = updateMilestoneSchema.parse(data);
 
-  const milestone = await prisma.milestone.findUniqueOrThrow({
+  const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
   });
+
+  if (!milestone) {
+    return null;
+  }
 
   await requireWeddingAccess(milestone.weddingId);
 
@@ -57,25 +62,43 @@ export async function updateMilestone(milestoneId: string, data: unknown) {
   if (parsed.category !== undefined) updateData.category = parsed.category;
   if (parsed.sortOrder !== undefined) updateData.sortOrder = parsed.sortOrder;
 
-  const updated = await prisma.milestone.update({
-    where: { id: milestoneId },
-    data: updateData,
-  });
+  let updated = null;
+
+  try {
+    updated = await prisma.milestone.update({
+      where: { id: milestoneId },
+      data: updateData,
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${milestone.weddingId}/schedule`);
   return updated;
 }
 
 export async function deleteMilestone(milestoneId: string) {
-  const milestone = await prisma.milestone.findUniqueOrThrow({
+  const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
   });
+
+  if (!milestone) {
+    return;
+  }
 
   await requireWeddingAccess(milestone.weddingId);
 
-  await prisma.milestone.delete({
-    where: { id: milestoneId },
-  });
+  try {
+    await prisma.milestone.delete({
+      where: { id: milestoneId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${milestone.weddingId}/schedule`);
 }
@@ -83,9 +106,13 @@ export async function deleteMilestone(milestoneId: string) {
 export async function createTask(milestoneId: string, data: unknown) {
   const parsed = taskSchema.parse(data);
 
-  const milestone = await prisma.milestone.findUniqueOrThrow({
+  const milestone = await prisma.milestone.findUnique({
     where: { id: milestoneId },
   });
+
+  if (!milestone) {
+    return null;
+  }
 
   await requireWeddingAccess(milestone.weddingId);
 
@@ -103,33 +130,55 @@ export async function createTask(milestoneId: string, data: unknown) {
 }
 
 export async function toggleTask(taskId: string) {
-  const task = await prisma.task.findUniqueOrThrow({
+  const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { milestone: true },
   });
 
+  if (!task) {
+    return null;
+  }
+
   await requireWeddingAccess(task.milestone.weddingId);
 
-  const updated = await prisma.task.update({
-    where: { id: taskId },
-    data: { done: !task.done },
-  });
+  let updated = null;
+
+  try {
+    updated = await prisma.task.update({
+      where: { id: taskId },
+      data: { done: !task.done },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${task.milestone.weddingId}/schedule`);
   return updated;
 }
 
 export async function deleteTask(taskId: string) {
-  const task = await prisma.task.findUniqueOrThrow({
+  const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { milestone: true },
   });
 
+  if (!task) {
+    return;
+  }
+
   await requireWeddingAccess(task.milestone.weddingId);
 
-  await prisma.task.delete({
-    where: { id: taskId },
-  });
+  try {
+    await prisma.task.delete({
+      where: { id: taskId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
   revalidatePath(`/weddings/${task.milestone.weddingId}/schedule`);
 }

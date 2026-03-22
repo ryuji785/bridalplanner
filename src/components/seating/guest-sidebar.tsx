@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Search, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
 type Guest = {
   id: string;
@@ -28,15 +28,13 @@ function DraggableGuest({ guest }: { guest: Guest }) {
       data: { type: "guest", guest },
     });
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.5 : 1,
+      }}
       {...listeners}
       {...attributes}
       className={cn(
@@ -46,7 +44,7 @@ function DraggableGuest({ guest }: { guest: Guest }) {
     >
       <span
         className={cn(
-          "h-2 w-2 flex-shrink-0 rounded-full",
+          "h-2 w-2 shrink-0 rounded-full",
           guest.side === "bride" ? "bg-pink-400" : "bg-blue-400"
         )}
       />
@@ -65,17 +63,17 @@ function DraggableGuest({ guest }: { guest: Guest }) {
 export function GuestSidebar({ unassignedGuests }: GuestSidebarProps) {
   const [search, setSearch] = useState("");
 
-  const filtered = useMemo(() => {
+  const filteredGuests = useMemo(() => {
     if (!search) return unassignedGuests;
 
     return unassignedGuests.filter((guest) => {
       const fullName = `${guest.familyName}${guest.givenName}`;
       return fullName.includes(search);
     });
-  }, [unassignedGuests, search]);
+  }, [search, unassignedGuests]);
 
-  const brideGuests = filtered.filter((guest) => guest.side === "bride");
-  const groomGuests = filtered.filter((guest) => guest.side === "groom");
+  const brideGuests = filteredGuests.filter((guest) => guest.side === "bride");
+  const groomGuests = filteredGuests.filter((guest) => guest.side === "groom");
 
   return (
     <div className="flex h-full w-72 flex-col border-l bg-white">
@@ -83,7 +81,7 @@ export function GuestSidebar({ unassignedGuests }: GuestSidebarProps) {
         <div className="mb-2 flex items-center justify-between">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <User className="h-4 w-4" />
-            未配置ゲスト
+            未割当ゲスト
           </h3>
           <Badge variant="secondary" className="text-xs">
             {unassignedGuests.length}名
@@ -101,15 +99,15 @@ export function GuestSidebar({ unassignedGuests }: GuestSidebarProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
-        {filtered.length === 0 ? (
+        {filteredGuests.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             {search
               ? "検索条件に一致するゲストがいません"
-              : "すべてのゲストを配置済みです"}
+              : "すべてのゲストが割当済みです"}
           </div>
         ) : (
           <>
-            {groomGuests.length > 0 && (
+            {groomGuests.length > 0 ? (
               <div className="mb-3">
                 <div className="flex items-center gap-2 px-2 py-1">
                   <span className="h-2 w-2 rounded-full bg-blue-400" />
@@ -126,13 +124,13 @@ export function GuestSidebar({ unassignedGuests }: GuestSidebarProps) {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {groomGuests.length > 0 && brideGuests.length > 0 && (
+            {groomGuests.length > 0 && brideGuests.length > 0 ? (
               <Separator className="my-2" />
-            )}
+            ) : null}
 
-            {brideGuests.length > 0 && (
+            {brideGuests.length > 0 ? (
               <div>
                 <div className="flex items-center gap-2 px-2 py-1">
                   <span className="h-2 w-2 rounded-full bg-pink-400" />
@@ -149,7 +147,7 @@ export function GuestSidebar({ unassignedGuests }: GuestSidebarProps) {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </>
         )}
       </div>

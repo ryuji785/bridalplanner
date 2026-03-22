@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireWeddingAccess } from "@/lib/auth-helpers";
+import { isMissingRecordError } from "@/lib/action-errors";
 import { guestCreateSchema, guestUpdateSchema } from "@/lib/validators/guest";
+import { parseGuestCsv } from "@/lib/guest-csv";
 import type { Prisma } from "@prisma/client";
 
 export type GuestFilters = {
@@ -11,6 +13,16 @@ export type GuestFilters = {
   attendanceStatus?: "pending" | "attending" | "declined";
   search?: string;
 };
+
+export type GuestCsvImportResult =
+  | { success: true; created: number; updated: number; total: number }
+  | { success: false; errors: string[]; total: number };
+
+function revalidateGuestPaths(weddingId: string) {
+  revalidatePath(`/weddings/${weddingId}/guests`);
+  revalidatePath(`/weddings/${weddingId}/seating`);
+  revalidatePath(`/weddings/${weddingId}/gifts`);
+}
 
 export async function getGuests(weddingId: string, filters?: GuestFilters) {
   await requireWeddingAccess(weddingId);
@@ -36,16 +48,16 @@ export async function getGuests(weddingId: string, filters?: GuestFilters) {
     ];
   }
 
-  const guests = await prisma.guest.findMany({
+  return prisma.guest.findMany({
     where,
     orderBy: [
       { side: "asc" },
       { familyNameKana: "asc" },
       { givenNameKana: "asc" },
+      { familyName: "asc" },
+      { givenName: "asc" },
     ],
   });
-
-  return guests;
 }
 
 export async function createGuest(weddingId: string, formData: FormData) {
@@ -89,15 +101,22 @@ export async function createGuest(weddingId: string, formData: FormData) {
     },
   });
 
-  revalidatePath(`/weddings/${weddingId}/guests`);
+  revalidateGuestPaths(weddingId);
 
   return { success: true as const };
 }
 
 export async function updateGuest(guestId: string, formData: FormData) {
-  const guest = await prisma.guest.findUniqueOrThrow({
+  const guest = await prisma.guest.findUnique({
     where: { id: guestId },
   });
+
+  if (!guest) {
+    return {
+      success: false as const,
+      error: "ゲストが見つかりません。",
+    };
+  }
 
   await requireWeddingAccess(guest.weddingId);
 
@@ -126,33 +145,53 @@ export async function updateGuest(guestId: string, formData: FormData) {
     }
   }
 
-  // Normalize empty email to null
   if (data.email === "") {
     data.email = null;
   }
 
-  await prisma.guest.update({
-    where: { id: guestId },
-    data,
-  });
+  try {
+    await prisma.guest.update({
+      where: { id: guestId },
+      data,
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        error: "ゲストが見つかりません。",
+      };
+    }
 
-  revalidatePath(`/weddings/${guest.weddingId}/guests`);
+    throw error;
+  }
+
+  revalidateGuestPaths(guest.weddingId);
 
   return { success: true as const };
 }
 
 export async function deleteGuest(guestId: string) {
-  const guest = await prisma.guest.findUniqueOrThrow({
+  const guest = await prisma.guest.findUnique({
     where: { id: guestId },
   });
+
+  if (!guest) {
+    return { success: true as const };
+  }
 
   await requireWeddingAccess(guest.weddingId);
 
-  await prisma.guest.delete({
-    where: { id: guestId },
-  });
+  try {
+    await prisma.guest.delete({
+      where: { id: guestId },
+    });
+  } catch (error) {
+    if (!isMissingRecordError(error)) {
+      throw error;
+    }
+  }
 
-  revalidatePath(`/weddings/${guest.weddingId}/guests`);
+  revalidateGuestPaths(guest.weddingId);
 
   return { success: true as const };
 }
@@ -161,18 +200,102 @@ export async function updateAttendanceStatus(
   guestId: string,
   status: "pending" | "attending" | "declined"
 ) {
-  const guest = await prisma.guest.findUniqueOrThrow({
+  const guest = await prisma.guest.findUnique({
     where: { id: guestId },
   });
+
+  if (!guest) {
+    return {
+      success: false as const,
+      error: "ゲストが見つかりません。",
+    };
+  }
 
   await requireWeddingAccess(guest.weddingId);
 
-  await prisma.guest.update({
-    where: { id: guestId },
-    data: { attendanceStatus: status },
-  });
+  try {
+    await prisma.guest.update({
+      where: { id: guestId },
+      data: { attendanceStatus: status },
+    });
+  } catch (error) {
+    if (isMissingRecordError(error)) {
+      return {
+        success: false as const,
+        error: "ゲストが見つかりません。",
+      };
+    }
 
-  revalidatePath(`/weddings/${guest.weddingId}/guests`);
+    throw error;
+  }
+
+  revalidateGuestPaths(guest.weddingId);
 
   return { success: true as const };
+}
+
+export async function importGuestsFromCsv(
+  weddingId: string,
+  csvText: string
+): Promise<GuestCsvImportResult> {
+  await requireWeddingAccess(weddingId);
+
+  const parsed = parseGuestCsv(csvText);
+  if (!parsed.success) {
+    return {
+      success: false,
+      errors: parsed.errors,
+      total: 0,
+    };
+  }
+
+  const existingGuests = await prisma.guest.findMany({
+    where: { weddingId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existingGuests.map((guest) => guest.id));
+
+  const missingIdErrors = parsed.rows
+    .filter((row) => row.id && !existingIds.has(row.id))
+    .map((row) => `${row.rowNumber}行目: 指定された id のゲストはこの結婚式に存在しません。`);
+
+  if (missingIdErrors.length > 0) {
+    return {
+      success: false,
+      errors: missingIdErrors,
+      total: parsed.rows.length,
+    };
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of parsed.rows) {
+      if (row.id) {
+        await tx.guest.update({
+          where: { id: row.id },
+          data: row.data,
+        });
+        updated += 1;
+      } else {
+        await tx.guest.create({
+          data: {
+            ...row.data,
+            weddingId,
+          },
+        });
+        created += 1;
+      }
+    }
+  });
+
+  revalidateGuestPaths(weddingId);
+
+  return {
+    success: true,
+    created,
+    updated,
+    total: parsed.rows.length,
+  };
 }

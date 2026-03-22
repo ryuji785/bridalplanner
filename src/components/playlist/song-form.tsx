@@ -1,18 +1,19 @@
 "use client";
 
-import { useTransition, useRef } from "react";
+import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createSong, updateSong } from "@/actions/playlist-actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { createSong, updateSong } from "@/actions/playlist-actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type Song = {
   id: string;
@@ -29,28 +30,29 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-function formatDuration(seconds: number | null): string {
+function formatDuration(seconds: number | null) {
   if (seconds == null) return "";
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
+  const minutes = Math.floor(seconds / 60);
+  const remain = seconds % 60;
+  return `${minutes}:${remain.toString().padStart(2, "0")}`;
 }
 
 export function SongForm({ sectionId, song, open, onOpenChange }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-
-  const isEditing = !!song;
+  const [isPending, startTransition] = useTransition();
+  const isEditing = Boolean(song);
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       const result = isEditing
-        ? await updateSong(song.id, formData)
+        ? await updateSong(song!.id, formData)
         : await createSong(sectionId, formData);
 
       if (result.success) {
         onOpenChange(false);
         formRef.current?.reset();
+        router.refresh();
       }
     });
   }
@@ -59,11 +61,14 @@ export function SongForm({ sectionId, song, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "曲を編集" : "曲を追加"}
-          </DialogTitle>
+          <DialogTitle>{isEditing ? "曲を編集" : "曲を追加"}</DialogTitle>
         </DialogHeader>
-        <form ref={formRef} action={handleSubmit} className="space-y-4">
+        <form
+          key={song?.id ?? "new"}
+          ref={formRef}
+          action={handleSubmit}
+          className="space-y-4"
+        >
           <div className="space-y-2">
             <Label htmlFor="title">曲名 *</Label>
             <Input
@@ -85,7 +90,7 @@ export function SongForm({ sectionId, song, open, onOpenChange }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="durationSec">再生時間（mm:ss）</Label>
+            <Label htmlFor="durationSec">再生時間（m:ss）</Label>
             <Input
               id="durationSec"
               name="durationSec"
@@ -113,7 +118,7 @@ export function SongForm({ sectionId, song, open, onOpenChange }: Props) {
               キャンセル
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "保存中..." : isEditing ? "更新" : "追加"}
+              {isPending ? "保存中..." : isEditing ? "更新する" : "追加する"}
             </Button>
           </DialogFooter>
         </form>

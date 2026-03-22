@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatYen(amount: number): string {
-  return `¥${amount.toLocaleString("ja-JP")}`;
+  return `￥${amount.toLocaleString("ja-JP")}`;
 }
 
 export function formatDate(date: Date | string): string {
@@ -23,5 +23,7 @@ export function daysUntil(date: Date | string): number {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.ceil(
+    (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
 }

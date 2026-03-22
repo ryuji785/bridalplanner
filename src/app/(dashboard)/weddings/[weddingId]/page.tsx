@@ -81,37 +81,37 @@ export default async function WeddingOverviewPage({
       label: "スケジュール",
       href: `/weddings/${params.weddingId}/schedule`,
       icon: Calendar,
-      description: "マイルストーンとタスクを管理",
+      description: "マイルストーンとタスクを管理します。",
     },
     {
       label: "ゲスト管理",
       href: `/weddings/${params.weddingId}/guests`,
       icon: Users,
-      description: "ゲストの登録と出欠確認",
+      description: "ゲスト一覧、出欠、住所録を管理します。",
     },
     {
       label: "席次表",
       href: `/weddings/${params.weddingId}/seating`,
       icon: Grid3X3,
-      description: "テーブル配置と座席管理",
+      description: "テーブル配置と着席を調整します。",
     },
     {
       label: "引き出物",
       href: `/weddings/${params.weddingId}/gifts`,
       icon: Gift,
-      description: "引き出物の管理",
+      description: "引き出物の管理と予算確認を行います。",
     },
     {
       label: "音楽",
       href: `/weddings/${params.weddingId}/playlist`,
       icon: Music,
-      description: "BGMとプレイリスト管理",
+      description: "BGMと進行ごとの楽曲を整理します。",
     },
     {
       label: "当日タイムライン",
       href: `/weddings/${params.weddingId}/day-of`,
       icon: Clock,
-      description: "当日の進行管理",
+      description: "当日の進行表を管理します。",
     },
   ];
 
@@ -136,12 +136,12 @@ export default async function WeddingOverviewPage({
           {days > 0 ? (
             <div>
               <span className="text-3xl font-bold text-primary">{days}</span>
-              <span className="ml-1 text-lg text-muted-foreground">日後</span>
+              <span className="ml-1 text-lg text-muted-foreground">日前</span>
             </div>
           ) : days === 0 ? (
             <span className="text-2xl font-bold text-primary">本日</span>
           ) : (
-            <span className="text-lg text-muted-foreground">挙式済み</span>
+            <span className="text-lg text-muted-foreground">挙式終了</span>
           )}
         </div>
       </div>
@@ -149,7 +149,7 @@ export default async function WeddingOverviewPage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">ゲスト数</CardTitle>
+            <CardTitle className="text-sm font-medium">ゲスト総数</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -159,7 +159,7 @@ export default async function WeddingOverviewPage({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">出席予定</CardTitle>
+            <CardTitle className="text-sm font-medium">出席人数</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
@@ -203,7 +203,9 @@ export default async function WeddingOverviewPage({
               <div className="text-2xl font-bold">
                 {formatYen(wedding.budget)}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">登録済み予算</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                登録済みの結婚式予算です。
+              </p>
             </CardContent>
           </Card>
         )}
@@ -211,12 +213,14 @@ export default async function WeddingOverviewPage({
         <Card className={wedding.budget ? "" : "lg:col-span-2"}>
           <CardHeader>
             <CardTitle className="text-base">今後のマイルストーン</CardTitle>
-            <CardDescription>期日が近いものを表示しています</CardDescription>
+            <CardDescription>
+              直近の予定を優先順に表示しています。
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {wedding.milestones.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                マイルストーンはまだありません。
+                未完了のマイルストーンはありません。
               </p>
             ) : (
               <div className="space-y-3">
@@ -260,7 +264,7 @@ export default async function WeddingOverviewPage({
       <Separator />
 
       <div>
-        <h2 className="mb-4 text-lg font-semibold">セクション</h2>
+        <h2 className="mb-4 text-lg font-semibold">機能ショートカット</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {quickLinks.map((link) => (
             <Link key={link.href} href={link.href}>
